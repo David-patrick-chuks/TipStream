@@ -1,0 +1,160 @@
+{
+  "global": {
+    "apiVersion": "0.0.1",
+    "name": "social-tipping-indexer",
+    "description": "Indexer for Web3 Social Tipping Platform on Monad",
+    "version": "0.0.1"
+  },
+  "networks": [
+    {
+      "name": "monad-testnet",
+      "chainId": 41434,
+      "rpcUrl": "https://testnet-rpc.monad.xyz",
+      "currency": "MON",
+      "blockTime": 400
+    }
+  ],
+  "contracts": [
+    {
+      "name": "SocialTipping",
+      "address": "0x0000000000000000000000000000000000000000", // Will be updated after deployment
+      "abi": [
+        {
+          "type": "event",
+          "name": "PostCreated",
+          "inputs": [
+            {"name": "postId", "type": "uint256", "indexed": true},
+            {"name": "creator", "type": "address", "indexed": true},
+            {"name": "content", "type": "string", "indexed": false},
+            {"name": "timestamp", "type": "uint256", "indexed": false}
+          ]
+        },
+        {
+          "type": "event",
+          "name": "TipSent",
+          "inputs": [
+            {"name": "postId", "type": "uint256", "indexed": true},
+            {"name": "tipper", "type": "address", "indexed": true},
+            {"name": "creator", "type": "address", "indexed": true},
+            {"name": "amount", "type": "uint256", "indexed": false}
+          ]
+        },
+        {
+          "type": "event",
+          "name": "AutoTipEnabled",
+          "inputs": [
+            {"name": "postId", "type": "uint256", "indexed": true},
+            {"name": "tipper", "type": "address", "indexed": true},
+            {"name": "threshold", "type": "uint256", "indexed": false},
+            {"name": "amount", "type": "uint256", "indexed": false}
+          ]
+        },
+        {
+          "type": "event",
+          "name": "DelegationCreated",
+          "inputs": [
+            {"name": "postId", "type": "uint256", "indexed": true},
+            {"name": "delegator", "type": "address", "indexed": true},
+            {"name": "delegatee", "type": "address", "indexed": true},
+            {"name": "threshold", "type": "uint256", "indexed": false},
+            {"name": "amount", "type": "uint256", "indexed": false}
+          ]
+        },
+        {
+          "type": "event",
+          "name": "DelegationRevoked",
+          "inputs": [
+            {"name": "postId", "type": "uint256", "indexed": true},
+            {"name": "delegator", "type": "address", "indexed": true},
+            {"name": "autoTipIndex", "type": "uint256", "indexed": false}
+          ]
+        }
+      ]
+    }
+  ],
+  "entities": [
+    {
+      "name": "Post",
+      "fields": [
+        {"name": "id", "type": "BigInt!"},
+        {"name": "creator", "type": "String!"},
+        {"name": "content", "type": "String!"},
+        {"name": "timestamp", "type": "BigInt!"},
+        {"name": "totalTips", "type": "BigInt!"},
+        {"name": "tipCount", "type": "Int!"},
+        {"name": "engagement", "type": "Int!"}
+      ]
+    },
+    {
+      "name": "Tip",
+      "fields": [
+        {"name": "id", "type": "String!"},
+        {"name": "postId", "type": "BigInt!"},
+        {"name": "tipper", "type": "String!"},
+        {"name": "creator", "type": "String!"},
+        {"name": "amount", "type": "BigInt!"},
+        {"name": "timestamp", "type": "BigInt!"}
+      ]
+    },
+    {
+      "name": "AutoTip",
+      "fields": [
+        {"name": "id", "type": "String!"},
+        {"name": "postId", "type": "BigInt!"},
+        {"name": "tipper", "type": "String!"},
+        {"name": "threshold", "type": "BigInt!"},
+        {"name": "amount", "type": "BigInt!"},
+        {"name": "active", "type": "Boolean!"},
+        {"name": "timestamp", "type": "BigInt!"}
+      ]
+    },
+    {
+      "name": "Creator",
+      "fields": [
+        {"name": "address", "type": "String!"},
+        {"name": "totalEarnings", "type": "BigInt!"},
+        {"name": "postCount", "type": "Int!"},
+        {"name": "tipCount", "type": "Int!"}
+      ]
+    },
+    {
+      "name": "Delegation",
+      "fields": [
+        {"name": "id", "type": "String!"},
+        {"name": "postId", "type": "BigInt!"},
+        {"name": "delegator", "type": "String!"},
+        {"name": "delegatee", "type": "String!"},
+        {"name": "threshold", "type": "BigInt!"},
+        {"name": "amount", "type": "BigInt!"},
+        {"name": "active", "type": "Boolean!"},
+        {"name": "timestamp", "type": "BigInt!"}
+      ]
+    }
+  ],
+  "handlers": [
+    {
+      "event": "PostCreated",
+      "handler": "handlePostCreated"
+    },
+    {
+      "event": "TipSent",
+      "handler": "handleTipSent"
+    },
+    {
+      "event": "AutoTipEnabled",
+      "handler": "handleAutoTipEnabled"
+    },
+    {
+      "event": "AutoTipExecuted",
+      "handler": "handleAutoTipExecuted"
+    },
+    {
+      "event": "DelegationCreated",
+      "handler": "handleDelegationCreated"
+    },
+    {
+      "event": "DelegationRevoked",
+      "handler": "handleDelegationRevoked"
+    }
+  ]
+}

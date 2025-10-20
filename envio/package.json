@@ -1,0 +1,17 @@
+{
+  "name": "social-tipping-envio",
+  "version": "1.0.0",
+  "description": "Envio indexer for Web3 Social Tipping Platform",
+  "main": "index.js",
+  "scripts": {
+    "build": "envio build",
+    "deploy": "envio deploy",
+    "start": "envio start"
+  },
+  "dependencies": {
+    "@envio/graphql": "^0.0.1"
+  },
+  "devDependencies": {
+    "@envio/cli": "^0.0.1"
+  }
+}

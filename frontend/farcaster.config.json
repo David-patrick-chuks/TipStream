@@ -1,0 +1,52 @@
+{
+  "name": "Web3 Social Tipping",
+  "description": "Decentralized social media platform with automated tipping on Monad",
+  "version": "1.0.0",
+  "manifest": {
+    "name": "Web3 Social Tipping Platform",
+    "short_name": "SocialTipping",
+    "description": "Built on Monad with MetaMask Smart Accounts",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#16213e",
+    "icons": [
+      {
+        "src": "/icon-192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/icon-512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  },
+  "farcaster": {
+    "appId": "social-tipping-platform",
+    "permissions": [
+      "user:read",
+      "cast:read",
+      "cast:write"
+    ],
+    "features": [
+      "tipping",
+      "auto-tipping",
+      "analytics"
+    ]
+  },
+  "networks": {
+    "monad": {
+      "chainId": 41434,
+      "rpcUrl": "https://testnet-rpc.monad.xyz",
+      "name": "Monad Testnet"
+    }
+  },
+  "contracts": {
+    "SocialTipping": {
+      "address": "0x0000000000000000000000000000000000000000",
+      "abi": "SocialTipping.json"
+    }
+  }
+}
