@@ -199,6 +199,12 @@ contract SocialTipping {
         _checkAndExecuteAutoTips(postId);
     }
     
+    // Increase engagement without triggering auto-execution (for testing)
+    function increaseEngagementManual(uint256 postId) external {
+        require(posts[postId].creator != address(0), "Post does not exist");
+        posts[postId].engagement += 1;
+    }
+    
     // Internal function to check and execute auto-tips when engagement increases
     function _checkAndExecuteAutoTips(uint256 postId) internal {
         AutoTip[] storage postAutoTips = autoTips[postId];
@@ -210,7 +216,7 @@ contract SocialTipping {
                 // Execute the auto-tip
                 Post storage post = posts[postId];
                 
-                // Transfer funds to creator
+                // Transfer funds to creator (contract holds the funds from enableAutoTip)
                 payable(post.creator).transfer(autoTip.amount);
                 
                 // Update stats

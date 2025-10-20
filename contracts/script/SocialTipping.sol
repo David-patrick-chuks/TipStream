@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
 import {SocialTipping} from "../src/SocialTipping.sol";
 
 contract SocialTippingScript is Script {
