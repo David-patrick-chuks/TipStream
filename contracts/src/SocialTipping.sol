@@ -2,130 +2,145 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/console.sol";
+import "./SocialTippingTypes.sol";
+import "./ISocialTippingEvents.sol";
+import "./PostManager.sol";
+import "./TipManager.sol";
+import "./AutoTipManager.sol";
+import "./DelegationManager.sol";
 
-contract SocialTipping {
-    // Events for Envio indexing
-    event PostCreated(uint256 indexed postId, address indexed creator, string content, uint256 timestamp);
-    event TipSent(uint256 indexed postId, address indexed tipper, address indexed creator, uint256 amount);
-    event AutoTipEnabled(uint256 indexed postId, address indexed tipper, uint256 threshold, uint256 amount);
-    event AutoTipExecuted(uint256 indexed postId, address indexed tipper, address indexed creator, uint256 amount);
-    event DelegationCreated(uint256 indexed postId, address indexed delegator, address indexed delegatee, uint256 threshold, uint256 amount);
-    event DelegationRevoked(uint256 indexed postId, address indexed delegator, uint256 autoTipIndex);
-    
-    struct Post {
-        uint256 id;
-        address creator;
-        string content;
-        uint256 timestamp;
-        uint256 totalTips;
-        uint256 tipCount;
-        uint256 engagement; // likes, shares, etc.
+/**
+ * @title SocialTipping
+ * @dev Main contract orchestrating the Web3 Social Tipping Platform
+ * @notice Modular architecture with separate managers for different functionalities
+ */
+contract SocialTipping is 
+    ISocialTippingEvents,
+    PostManager,
+    TipManager,
+    AutoTipManager,
+    DelegationManager
+{
+    using SocialTippingTypes for SocialTippingTypes.Post;
+    using SocialTippingTypes for SocialTippingTypes.AutoTip;
+    using SocialTippingTypes for SocialTippingTypes.Delegation;
+
+    // Constructor
+    constructor() {
+        // Initialize any required state
     }
+
+    // ============ POST MANAGEMENT ============
     
-    struct AutoTip {
-        address tipper;
-        uint256 threshold; // minimum engagement to trigger auto-tip
-        uint256 amount;
-        bool active;
-        uint256 createdAt;
-        address delegatee; // who can execute this auto-tip (for delegation)
+    /**
+     * @dev Create a new post
+     * @param content The content of the post
+     */
+    function createPost(string memory content) external override {
+        super.createPost(content);
     }
-    
-    struct Delegation {
-        address delegator;
-        address delegatee;
-        uint256 postId;
-        uint256 threshold;
-        uint256 amount;
-        bool active;
-        uint256 createdAt;
+
+    /**
+     * @dev Get post details
+     * @param postId The ID of the post
+     * @return Post struct containing post data
+     */
+    function getPost(uint256 postId) external view override returns (SocialTippingTypes.Post memory) {
+        return super.getPost(postId);
     }
-    
-    // State variables
-    uint256 public nextPostId = 1;
-    mapping(uint256 => Post) public posts;
-    mapping(uint256 => AutoTip[]) public autoTips; // postId => autoTips
-    mapping(address => uint256) public creatorEarnings;
-    mapping(address => Delegation[]) public userDelegations; // user => delegations
-    
-    // Modifier to check if caller is authorized to execute auto-tip
-    modifier onlyAuthorized(uint256 postId, uint256 autoTipIndex) {
-        AutoTip storage autoTip = autoTips[postId][autoTipIndex];
-        require(
-            msg.sender == autoTip.tipper || msg.sender == autoTip.delegatee,
-            "Not authorized to execute this auto-tip"
-        );
-        _;
-    }
-    
-    // Create a new post
-    function createPost(string memory content) external {
-        uint256 postId = nextPostId++;
-        posts[postId] = Post({
-            id: postId,
-            creator: msg.sender,
-            content: content,
-            timestamp: block.timestamp,
-            totalTips: 0,
-            tipCount: 0,
-            engagement: 0
-        });
+
+    /**
+     * @dev Increase engagement for a post (triggers auto-tips)
+     * @param postId The ID of the post
+     */
+    function increaseEngagement(uint256 postId) external override {
+        super.increaseEngagement(postId);
         
-        emit PostCreated(postId, msg.sender, content, block.timestamp);
+        // Check if any auto-tips should be triggered
+        SocialTippingTypes.Post storage post = posts[postId];
+        super.checkAndExecuteAutoTips(postId, post);
     }
-    
-    // Send a tip to a post
+
+    /**
+     * @dev Increase engagement without triggering auto-execution (for testing)
+     * @param postId The ID of the post
+     */
+    function increaseEngagementManual(uint256 postId) external override {
+        super.increaseEngagementManual(postId);
+    }
+
+    // ============ TIP MANAGEMENT ============
+
+    /**
+     * @dev Send a tip to a post
+     * @param postId The ID of the post to tip
+     */
     function sendTip(uint256 postId) external payable {
-        require(posts[postId].creator != address(0), "Post does not exist");
-        require(msg.value > 0, "Tip amount must be greater than 0");
-        
-        Post storage post = posts[postId];
-        
-        // Update post stats
-        post.totalTips += msg.value;
-        post.tipCount += 1;
-        
-        // Update creator earnings
-        creatorEarnings[post.creator] += msg.value;
-        
-        // Transfer funds to creator
-        payable(post.creator).transfer(msg.value);
-        
-        emit TipSent(postId, msg.sender, post.creator, msg.value);
+        SocialTippingTypes.Post storage post = posts[postId];
+        super.sendTip(postId, post);
     }
-    
-    // Enable auto-tipping for a post (delegation feature)
+
+    /**
+     * @dev Get creator's total earnings
+     * @param creator The address of the creator
+     * @return Total earnings in wei
+     */
+    function getCreatorEarnings(address creator) external view override returns (uint256) {
+        return super.getCreatorEarnings(creator);
+    }
+
+    // ============ AUTO-TIP MANAGEMENT ============
+
+    /**
+     * @dev Enable auto-tipping for a post
+     * @param postId The ID of the post
+     * @param threshold Minimum engagement to trigger auto-tip
+     * @param amount Amount to tip when threshold is met
+     */
     function enableAutoTip(uint256 postId, uint256 threshold, uint256 amount) external payable {
-        require(posts[postId].creator != address(0), "Post does not exist");
-        require(amount > 0, "Auto-tip amount must be greater than 0");
-        require(msg.value >= amount, "Insufficient funds for auto-tip");
-        
-        autoTips[postId].push(AutoTip({
-            tipper: msg.sender,
-            threshold: threshold,
-            amount: amount,
-            active: true,
-            createdAt: block.timestamp,
-            delegatee: address(0) // No delegation initially
-        }));
-        
-        emit AutoTipEnabled(postId, msg.sender, threshold, amount);
+        SocialTippingTypes.Post storage post = posts[postId];
+        super.enableAutoTip(postId, threshold, amount, post);
     }
-    
-    // Create delegation for auto-tipping (INNOVATION FEATURE)
+
+    /**
+     * @dev Execute auto-tip when engagement threshold is met (supports delegation)
+     * @param postId The ID of the post
+     * @param autoTipIndex Index of the auto-tip to execute
+     */
+    function executeAutoTip(uint256 postId, uint256 autoTipIndex) external {
+        SocialTippingTypes.Post storage post = posts[postId];
+        super.executeAutoTip(postId, autoTipIndex, post);
+    }
+
+    /**
+     * @dev Get auto-tips for a post
+     * @param postId The ID of the post
+     * @return Array of AutoTip structs
+     */
+    function getAutoTips(uint256 postId) external view override returns (SocialTippingTypes.AutoTip[] memory) {
+        return super.getAutoTips(postId);
+    }
+
+    // ============ DELEGATION MANAGEMENT ============
+
+    /**
+     * @dev Create delegation for auto-tipping (INNOVATION FEATURE)
+     * @param postId The ID of the post
+     * @param threshold Minimum engagement to trigger auto-tip
+     * @param amount Amount to tip when threshold is met
+     * @param delegatee Address that can execute the auto-tip
+     */
     function createDelegation(
         uint256 postId, 
         uint256 threshold, 
         uint256 amount, 
         address delegatee
     ) external payable {
-        require(posts[postId].creator != address(0), "Post does not exist");
-        require(amount > 0, "Delegation amount must be greater than 0");
-        require(msg.value >= amount, "Insufficient funds for delegation");
-        require(delegatee != address(0), "Invalid delegatee address");
+        SocialTippingTypes.Post storage post = posts[postId];
+        super.createDelegation(postId, threshold, amount, delegatee, post);
         
-        // Create auto-tip with delegation
-        autoTips[postId].push(AutoTip({
+        // Also create auto-tip with delegation
+        autoTips[postId].push(SocialTippingTypes.AutoTip({
             tipper: msg.sender,
             threshold: threshold,
             amount: amount,
@@ -134,138 +149,57 @@ contract SocialTipping {
             delegatee: delegatee
         }));
         
-        // Store delegation record
-        userDelegations[msg.sender].push(Delegation({
-            delegator: msg.sender,
-            delegatee: delegatee,
-            postId: postId,
-            threshold: threshold,
-            amount: amount,
-            active: true,
-            createdAt: block.timestamp
-        }));
-        
-        emit DelegationCreated(postId, msg.sender, delegatee, threshold, amount);
         emit AutoTipEnabled(postId, msg.sender, threshold, amount);
     }
-    
-    // Execute auto-tip when engagement threshold is met (supports delegation)
-    function executeAutoTip(uint256 postId, uint256 autoTipIndex) external onlyAuthorized(postId, autoTipIndex) {
-        require(autoTipIndex < autoTips[postId].length, "Auto-tip does not exist");
-        
-        AutoTip storage autoTip = autoTips[postId][autoTipIndex];
-        require(autoTip.active, "Auto-tip is not active");
-        require(posts[postId].engagement >= autoTip.threshold, "Threshold not met");
-        
-        Post storage post = posts[postId];
-        
-        // Transfer funds to creator
-        payable(post.creator).transfer(autoTip.amount);
-        
-        // Update stats
-        post.totalTips += autoTip.amount;
-        post.tipCount += 1;
-        creatorEarnings[post.creator] += autoTip.amount;
-        
-        // Deactivate auto-tip
-        autoTip.active = false;
-        
-        emit AutoTipExecuted(postId, autoTip.tipper, post.creator, autoTip.amount);
+
+    /**
+     * @dev Revoke delegation
+     * @param postId The ID of the post
+     * @param autoTipIndex Index of the auto-tip to revoke
+     */
+    function revokeDelegation(uint256 postId, uint256 autoTipIndex) external override {
+        super.revokeDelegation(postId, autoTipIndex, autoTips);
     }
-    
-    // Revoke delegation
-    function revokeDelegation(uint256 postId, uint256 autoTipIndex) external {
-        require(autoTipIndex < autoTips[postId].length, "Auto-tip does not exist");
-        
-        AutoTip storage autoTip = autoTips[postId][autoTipIndex];
-        require(autoTip.tipper == msg.sender, "Only tipper can revoke");
-        require(autoTip.active, "Auto-tip is not active");
-        
-        // Deactivate auto-tip
-        autoTip.active = false;
-        
-        // Refund the amount to the tipper
-        payable(msg.sender).transfer(autoTip.amount);
-        
-        emit DelegationRevoked(postId, msg.sender, autoTipIndex);
+
+    /**
+     * @dev Get user's delegations
+     * @param user The address of the user
+     * @return Array of Delegation structs
+     */
+    function getUserDelegations(address user) external view override returns (SocialTippingTypes.Delegation[] memory) {
+        return super.getUserDelegations(user);
     }
-    
-    // Increase engagement (for demo purposes)
-    function increaseEngagement(uint256 postId) external {
-        require(posts[postId].creator != address(0), "Post does not exist");
-        posts[postId].engagement += 1;
-        
-        // Check if any auto-tips should be triggered
-        _checkAndExecuteAutoTips(postId);
-    }
-    
-    // Increase engagement without triggering auto-execution (for testing)
-    function increaseEngagementManual(uint256 postId) external {
-        require(posts[postId].creator != address(0), "Post does not exist");
-        posts[postId].engagement += 1;
-    }
-    
-    // Internal function to check and execute auto-tips when engagement increases
-    function _checkAndExecuteAutoTips(uint256 postId) internal {
-        AutoTip[] storage postAutoTips = autoTips[postId];
-        
-        for (uint256 i = 0; i < postAutoTips.length; i++) {
-            AutoTip storage autoTip = postAutoTips[i];
-            
-            if (autoTip.active && posts[postId].engagement >= autoTip.threshold) {
-                // Execute the auto-tip
-                Post storage post = posts[postId];
-                
-                // Transfer funds to creator (contract holds the funds from enableAutoTip)
-                payable(post.creator).transfer(autoTip.amount);
-                
-                // Update stats
-                post.totalTips += autoTip.amount;
-                post.tipCount += 1;
-                creatorEarnings[post.creator] += autoTip.amount;
-                
-                // Deactivate auto-tip
-                autoTip.active = false;
-                
-                emit AutoTipExecuted(postId, autoTip.tipper, post.creator, autoTip.amount);
-            }
-        }
-    }
-    
-    // Get post details
-    function getPost(uint256 postId) external view returns (Post memory) {
-        return posts[postId];
-    }
-    
-    // Get auto-tips for a post
-    function getAutoTips(uint256 postId) external view returns (AutoTip[] memory) {
-        return autoTips[postId];
-    }
-    
-    // Get creator's total earnings
-    function getCreatorEarnings(address creator) external view returns (uint256) {
-        return creatorEarnings[creator];
-    }
-    
-    // Get user's delegations
-    function getUserDelegations(address user) external view returns (Delegation[] memory) {
-        return userDelegations[user];
-    }
-    
-    // Get delegation statistics
-    function getDelegationStats(address user) external view returns (
+
+    /**
+     * @dev Get delegation statistics
+     * @param user The address of the user
+     * @return totalDelegations Total number of delegations created
+     * @return activeDelegations Number of active delegations
+     * @return totalDelegatedAmount Total amount delegated
+     */
+    function getDelegationStats(address user) external view override returns (
         uint256 totalDelegations,
         uint256 activeDelegations,
         uint256 totalDelegatedAmount
     ) {
-        Delegation[] memory delegations = userDelegations[user];
-        totalDelegations = delegations.length;
-        
-        for (uint256 i = 0; i < delegations.length; i++) {
-            if (delegations[i].active) {
-                activeDelegations++;
-                totalDelegatedAmount += delegations[i].amount;
-            }
-        }
+        return super.getDelegationStats(user);
+    }
+
+    // ============ UTILITY FUNCTIONS ============
+
+    /**
+     * @dev Get contract version
+     * @return Version string
+     */
+    function getVersion() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    /**
+     * @dev Get contract name
+     * @return Contract name
+     */
+    function getName() external pure returns (string memory) {
+        return "SocialTipping";
     }
 }
