@@ -98,6 +98,9 @@ contract SocialTipping is
      * @param amount Amount to tip when threshold is met
      */
     function enableAutoTip(uint256 postId, uint256 threshold, uint256 amount) external payable {
+        require(amount > 0, "Auto-tip amount must be greater than 0");
+        require(msg.value >= amount, "Insufficient funds for auto-tip");
+        
         SocialTippingTypes.Post storage post = posts[postId];
         super.enableAutoTip(postId, threshold, amount, post);
     }
@@ -136,6 +139,10 @@ contract SocialTipping is
         uint256 amount, 
         address delegatee
     ) external payable {
+        require(amount > 0, "Delegation amount must be greater than 0");
+        require(msg.value >= amount, "Insufficient funds for delegation");
+        require(delegatee != address(0), "Invalid delegatee address");
+        
         SocialTippingTypes.Post storage post = posts[postId];
         super.createDelegation(postId, threshold, amount, delegatee, post);
         
@@ -157,7 +164,7 @@ contract SocialTipping is
      * @param postId The ID of the post
      * @param autoTipIndex Index of the auto-tip to revoke
      */
-    function revokeDelegation(uint256 postId, uint256 autoTipIndex) external override {
+    function revokeDelegation(uint256 postId, uint256 autoTipIndex) external {
         super.revokeDelegation(postId, autoTipIndex, autoTips);
     }
 

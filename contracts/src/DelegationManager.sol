@@ -15,10 +15,9 @@ contract DelegationManager is ISocialTippingEvents {
         uint256 amount, 
         address delegatee,
         SocialTippingTypes.Post storage post
-    ) external payable {
+    ) internal {
         require(post.creator != address(0), "Post does not exist");
         require(amount > 0, "Delegation amount must be greater than 0");
-        require(msg.value >= amount, "Insufficient funds for delegation");
         require(delegatee != address(0), "Invalid delegatee address");
         
         // Store delegation record
@@ -39,7 +38,7 @@ contract DelegationManager is ISocialTippingEvents {
         uint256 postId, 
         uint256 autoTipIndex,
         mapping(uint256 => SocialTippingTypes.AutoTip[]) storage autoTips
-    ) external {
+    ) internal {
         require(autoTipIndex < autoTips[postId].length, "Auto-tip does not exist");
         
         SocialTippingTypes.AutoTip storage autoTip = autoTips[postId][autoTipIndex];

@@ -24,10 +24,9 @@ contract AutoTipManager is ISocialTippingEvents {
         uint256 threshold, 
         uint256 amount,
         SocialTippingTypes.Post storage post
-    ) external payable {
+    ) internal {
         require(post.creator != address(0), "Post does not exist");
         require(amount > 0, "Auto-tip amount must be greater than 0");
-        require(msg.value >= amount, "Insufficient funds for auto-tip");
         
         autoTips[postId].push(SocialTippingTypes.AutoTip({
             tipper: msg.sender,
@@ -45,7 +44,7 @@ contract AutoTipManager is ISocialTippingEvents {
         uint256 postId, 
         uint256 autoTipIndex,
         SocialTippingTypes.Post storage post
-    ) external onlyAuthorized(postId, autoTipIndex) {
+    ) internal onlyAuthorized(postId, autoTipIndex) {
         require(autoTipIndex < autoTips[postId].length, "Auto-tip does not exist");
         
         SocialTippingTypes.AutoTip storage autoTip = autoTips[postId][autoTipIndex];
@@ -69,7 +68,7 @@ contract AutoTipManager is ISocialTippingEvents {
         return autoTips[postId];
     }
     
-    function checkAndExecuteAutoTips(uint256 postId, SocialTippingTypes.Post storage post) external {
+    function checkAndExecuteAutoTips(uint256 postId, SocialTippingTypes.Post storage post) internal {
         SocialTippingTypes.AutoTip[] storage postAutoTips = autoTips[postId];
         
         for (uint256 i = 0; i < postAutoTips.length; i++) {

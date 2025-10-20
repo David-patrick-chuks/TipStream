@@ -12,7 +12,7 @@ contract TipManager is ISocialTippingEvents {
     function sendTip(
         uint256 postId, 
         SocialTippingTypes.Post storage post
-    ) external payable {
+    ) internal {
         require(post.creator != address(0), "Post does not exist");
         require(msg.value > 0, "Tip amount must be greater than 0");
         

@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {SocialTipping} from "../src/SocialTipping.sol";
+import {SocialTippingTypes} from "../src/SocialTippingTypes.sol";
 
 contract SocialTippingTest is Test {
     SocialTipping public socialTipping;
@@ -31,7 +32,7 @@ contract SocialTippingTest is Test {
         vm.prank(creator);
         socialTipping.createPost("Hello Web3!");
         
-        SocialTipping.Post memory post = socialTipping.getPost(1);
+        SocialTippingTypes.Post memory post = socialTipping.getPost(1);
         assertEq(post.id, 1);
         assertEq(post.creator, creator);
         assertEq(post.content, "Hello Web3!");
@@ -52,7 +53,7 @@ contract SocialTippingTest is Test {
         vm.prank(tipper);
         socialTipping.sendTip{value: TIP_AMOUNT}(1);
         
-        SocialTipping.Post memory post = socialTipping.getPost(1);
+        SocialTippingTypes.Post memory post = socialTipping.getPost(1);
         assertEq(post.totalTips, TIP_AMOUNT);
         assertEq(post.tipCount, 1);
         assertEq(creator.balance, creatorBalanceBefore + TIP_AMOUNT);
@@ -69,7 +70,7 @@ contract SocialTippingTest is Test {
         vm.prank(tipper);
         socialTipping.enableAutoTip{value: AUTO_TIP_AMOUNT}(1, ENGAGEMENT_THRESHOLD, AUTO_TIP_AMOUNT);
         
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertEq(autoTips.length, 1);
         assertEq(autoTips[0].tipper, tipper);
         assertEq(autoTips[0].threshold, ENGAGEMENT_THRESHOLD);
@@ -88,13 +89,13 @@ contract SocialTippingTest is Test {
         vm.prank(tipper);
         socialTipping.createDelegation{value: AUTO_TIP_AMOUNT}(1, ENGAGEMENT_THRESHOLD, AUTO_TIP_AMOUNT, delegatee);
         
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertEq(autoTips.length, 1);
         assertEq(autoTips[0].tipper, tipper);
         assertEq(autoTips[0].delegatee, delegatee);
         assertTrue(autoTips[0].active);
         
-        SocialTipping.Delegation[] memory delegations = socialTipping.getUserDelegations(tipper);
+        SocialTippingTypes.Delegation[] memory delegations = socialTipping.getUserDelegations(tipper);
         assertEq(delegations.length, 1);
         assertEq(delegations[0].delegator, tipper);
         assertEq(delegations[0].delegatee, delegatee);
@@ -123,13 +124,13 @@ contract SocialTippingTest is Test {
         vm.prank(delegatee);
         socialTipping.executeAutoTip(1, 0);
         
-        SocialTipping.Post memory post = socialTipping.getPost(1);
+        SocialTippingTypes.Post memory post = socialTipping.getPost(1);
         assertEq(post.totalTips, AUTO_TIP_AMOUNT);
         assertEq(post.tipCount, 1);
         assertEq(creator.balance, creatorBalanceBefore + AUTO_TIP_AMOUNT);
         
         // Auto-tip should be deactivated
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertFalse(autoTips[0].active);
     }
 
@@ -150,13 +151,13 @@ contract SocialTippingTest is Test {
             socialTipping.increaseEngagement(1);
         }
         
-        SocialTipping.Post memory post = socialTipping.getPost(1);
+        SocialTippingTypes.Post memory post = socialTipping.getPost(1);
         assertEq(post.totalTips, AUTO_TIP_AMOUNT);
         assertEq(post.tipCount, 1);
         assertEq(creator.balance, creatorBalanceBefore + AUTO_TIP_AMOUNT);
         
         // Auto-tip should be deactivated
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertFalse(autoTips[0].active);
     }
 
@@ -176,7 +177,7 @@ contract SocialTippingTest is Test {
         socialTipping.revokeDelegation(1, 0);
         
         // Auto-tip should be deactivated
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertFalse(autoTips[0].active);
         
         // Tipper should get refund
@@ -234,7 +235,7 @@ contract SocialTippingTest is Test {
         vm.prank(anotherUser);
         socialTipping.createDelegation{value: AUTO_TIP_AMOUNT}(1, 10, AUTO_TIP_AMOUNT, delegatee);
         
-        SocialTipping.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
+        SocialTippingTypes.AutoTip[] memory autoTips = socialTipping.getAutoTips(1);
         assertEq(autoTips.length, 2);
         
         // Both should be active
@@ -279,7 +280,7 @@ contract SocialTippingTest is Test {
             socialTipping.increaseEngagement(1);
         }
         
-        SocialTipping.Post memory post = socialTipping.getPost(1);
+        SocialTippingTypes.Post memory post = socialTipping.getPost(1);
         assertEq(post.totalTips, AUTO_TIP_AMOUNT);
         assertEq(post.tipCount, 1);
     }
