@@ -210,10 +210,10 @@ contract SocialTippingTest is Test {
         vm.prank(tipper);
         socialTipping.createDelegation{value: AUTO_TIP_AMOUNT}(1, ENGAGEMENT_THRESHOLD, AUTO_TIP_AMOUNT, delegatee);
         
-        // Increase engagement
+        // Increase engagement manually to avoid auto-execution
         vm.prank(anotherUser);
         for (uint256 i = 0; i < ENGAGEMENT_THRESHOLD; i++) {
-            socialTipping.increaseEngagement(1);
+            socialTipping.increaseEngagementManual(1);
         }
         
         // Unauthorized user cannot execute

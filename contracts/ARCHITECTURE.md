@@ -15,7 +15,7 @@ The SocialTipping contract has been refactored into a modular, professional arch
 
 ### 2. Events Interface (`ISocialTippingEvents.sol`)
 - **Purpose**: Standardized event definitions
-- **Contains**: All contract events for Envio indexing
+- **Contains**: All contract events for external integrations
 - **Benefits**:
   - Consistent event emission
   - Easy to track and monitor

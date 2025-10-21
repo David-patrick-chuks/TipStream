@@ -38,7 +38,7 @@
   },
   "networks": {
     "monad": {
-      "chainId": 41434,
+      "chainId": 10143,
       "rpcUrl": "https://testnet-rpc.monad.xyz",
       "name": "Monad Testnet"
     }

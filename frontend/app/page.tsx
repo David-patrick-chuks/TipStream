@@ -5,6 +5,8 @@ import DelegationDashboard from '@/components/DelegationDashboard';
 import PostFeed from '@/components/PostFeed';
 import WalletConnect from '@/components/WalletConnect';
 import { apiService } from '@/services/api.service';
+import { metaMaskSmartAccountService } from '@/services/metamask-smart-account.service';
+import { delegationService } from '@/services/delegation.service';
 import { Post } from '@/types';
 import { MetaMaskProvider } from '@metamask/sdk-react';
 import { useEffect, useState } from 'react';
@@ -15,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDelegationDashboard, setShowDelegationDashboard] = useState(false);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
 
   // Load posts from API
   useEffect(() => {
@@ -59,6 +62,23 @@ export default function Home() {
     setPosts([post, ...posts]);
   };
 
+  const handleWalletConnect = async (connected: boolean) => {
+    setIsConnected(connected);
+    if (connected) {
+      try {
+        const accountInfo = await metaMaskSmartAccountService.connect();
+        setUserAddress(accountInfo.address);
+        console.log('Connected to MetaMask Smart Account:', accountInfo);
+      } catch (error) {
+        console.error('Error connecting to MetaMask:', error);
+        setIsConnected(false);
+      }
+    } else {
+      setUserAddress(null);
+      await metaMaskSmartAccountService.disconnect();
+    }
+  };
+
   return (
     <MetaMaskProvider
       debug={false}
@@ -81,7 +101,7 @@ export default function Home() {
               Built on Monad with MetaMask Smart Accounts
             </p>
                 <div className="mt-4 flex items-center gap-4">
-                  <WalletConnect onConnect={setIsConnected} />
+                  <WalletConnect onConnect={handleWalletConnect} />
                   {isConnected && (
                     <button
                       onClick={() => setShowDelegationDashboard(true)}
@@ -135,7 +155,7 @@ export default function Home() {
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-white mb-2">Real-time Analytics</h3>
-                <p className="text-blue-200">Track earnings and engagement with Envio indexing</p>
+                <p className="text-blue-200">Track earnings and engagement with real-time analytics</p>
               </div>
             </div>
           </div>
@@ -145,7 +165,8 @@ export default function Home() {
       {/* Delegation Dashboard Modal */}
       <DelegationDashboard 
         isOpen={showDelegationDashboard} 
-        onClose={() => setShowDelegationDashboard(false)} 
+        onClose={() => setShowDelegationDashboard(false)}
+        userAddress={userAddress}
       />
     </MetaMaskProvider>
   );

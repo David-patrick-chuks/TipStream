@@ -1,6 +1,5 @@
-import { DelegationManager } from '@metamask/delegation-toolkit';
-import { createPublicClient, createWalletClient, http, parseEther } from 'viem';
-import { privateKeyToAccount } from 'viem/accounts';
+import { createDelegation, createExecution, getDeleGatorEnvironment } from '@metamask/delegation-toolkit';
+import { createPublicClient, http, parseEther } from 'viem';
 import { monadTestnet } from 'viem/chains';
 
 export interface AutoTipDelegation {
@@ -12,12 +11,10 @@ export interface AutoTipDelegation {
 }
 
 export class DelegationService {
-  private delegationManager: DelegationManager;
   private publicClient;
   private contractAddress: string;
 
   constructor() {
-    this.delegationManager = new DelegationManager();
     this.contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
     
     this.publicClient = createPublicClient({
@@ -34,62 +31,41 @@ export class DelegationService {
     postId: string,
     threshold: number,
     amount: string,
-    userAddress: string
-  ): Promise<{ delegationId: string; txHash: string }> {
+    userAddress: string,
+    delegateeAddress: string
+  ): Promise<{ delegationId: string; delegation: unknown }> {
     try {
-      // Create delegation configuration
-      const delegationConfig = {
-        // Delegate permission to execute auto-tips when engagement threshold is met
-        permissions: [
-          {
-            type: 'contract-call',
-            target: this.contractAddress,
-            function: 'executeAutoTip',
-            params: {
-              postId: postId,
-              autoTipIndex: 0, // Will be determined dynamically
-            },
-            conditions: [
-              {
-                type: 'engagement-threshold',
-                postId: postId,
-                threshold: threshold,
-              }
-            ]
-          }
-        ],
-        // Auto-tip amount and conditions
-        autoTip: {
-          amount: parseEther(amount),
-          threshold: threshold,
-          postId: postId,
+      // Get the delegation environment for Monad testnet
+      const environment = getDeleGatorEnvironment(monadTestnet.id);
+      
+      // Create delegation with native token transfer scope for auto-tipping
+      const delegation = createDelegation({
+        from: userAddress as `0x${string}`,
+        to: delegateeAddress as `0x${string}`,
+        environment,
+        scope: {
+          type: "nativeTokenTransferAmount",
+          maxAmount: parseEther(amount),
         },
-        // Delegation metadata
-        metadata: {
-          name: `Auto-Tip Delegation for Post ${postId}`,
-          description: `Automatically tip ${amount} ETH when post reaches ${threshold} engagement`,
-          version: '1.0.0',
-        }
-      };
-
-      // Create the delegation
-      const delegation = await this.delegationManager.createDelegation(
-        userAddress,
-        delegationConfig
-      );
+      });
 
       // Store delegation in local storage for management
       const delegationId = `auto-tip-${postId}-${Date.now()}`;
       localStorage.setItem(delegationId, JSON.stringify({
-        ...delegationConfig,
         delegationId,
+        postId,
+        threshold,
+        amount,
+        userAddress,
+        delegateeAddress,
         createdAt: Date.now(),
         active: true,
+        delegation,
       }));
 
       return {
         delegationId,
-        txHash: delegation.txHash,
+        delegation,
       };
     } catch (error) {
       console.error('Error creating auto-tip delegation:', error);
@@ -99,47 +75,25 @@ export class DelegationService {
 
   /**
    * Execute auto-tip when engagement threshold is met
-   * This function is called by the delegation system
+   * This function creates an execution for the delegation system
    */
-  async executeAutoTip(
+  async createAutoTipExecution(
     postId: string,
     autoTipIndex: number,
-    privateKey: string
-  ): Promise<string> {
+    amount: string
+  ): Promise<unknown> {
     try {
-      const account = privateKeyToAccount(privateKey as `0x${string}`);
-      
-      const walletClient = createWalletClient({
-        account,
-        chain: monadTestnet,
-        transport: http(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz'),
+      // Create execution for auto-tip
+      const execution = createExecution({
+        target: this.contractAddress as `0x${string}`,
+        value: parseEther(amount),
+        callData: "0x", // Will be encoded with actual function call
       });
 
-      // Contract ABI for executeAutoTip function
-      const contractABI = [
-        {
-          "type": "function",
-          "name": "executeAutoTip",
-          "inputs": [
-            {"name": "postId", "type": "uint256"},
-            {"name": "autoTipIndex", "type": "uint256"}
-          ],
-          "outputs": [],
-          "stateMutability": "nonpayable"
-        }
-      ];
-
-      const hash = await walletClient.writeContract({
-        address: this.contractAddress as `0x${string}`,
-        abi: contractABI,
-        functionName: 'executeAutoTip',
-        args: [BigInt(postId), BigInt(autoTipIndex)],
-      });
-
-      return hash;
+      return execution;
     } catch (error) {
-      console.error('Error executing auto-tip:', error);
-      throw new Error('Failed to execute auto-tip');
+      console.error('Error creating auto-tip execution:', error);
+      throw new Error('Failed to create auto-tip execution');
     }
   }
 
@@ -172,7 +126,7 @@ export class DelegationService {
         abi: contractABI,
         functionName: 'getPost',
         args: [BigInt(postId)],
-      });
+      }) as [bigint, string, string, bigint, bigint, bigint, bigint];
 
       const engagement = Number(result[6]); // engagement is the 7th element
       return engagement >= threshold;

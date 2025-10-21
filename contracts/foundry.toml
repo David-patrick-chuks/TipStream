@@ -6,8 +6,7 @@ solc_version = "0.8.13"
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
 
-[rpc_endpoints]
-monad_testnet = "https://testnet-rpc.monad.xyz"
-
-[etherscan]
-monad_testnet = { key = "${MONAD_API_KEY}", url = "https://testnet.monadscan.com/api" }
+# Monad Testnet Configuration
+eth-rpc-url="https://testnet-rpc.monad.xyz"
+chain_id = 31337 
+# chain_id = 10143

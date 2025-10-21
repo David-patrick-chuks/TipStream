@@ -15,7 +15,6 @@ web3-social-tipping/
 ├── contracts/          # Smart contracts (Foundry)
 ├── frontend/           # Next.js frontend
 ├── backend/            # Express.js backend
-├── envio/              # Envio indexer
 └── docs/               # Documentation
 ```
 
@@ -81,21 +80,6 @@ echo "NEXT_PUBLIC_API_URL=http://localhost:3001/api" > .env.local
 
 # Start development server
 npm run dev
-```
-
-### 4. Envio Indexer Setup
-
-```bash
-cd envio
-
-# Install dependencies
-npm install
-
-# Build indexer
-envio build
-
-# Deploy indexer
-envio deploy
 ```
 
 ## 🎯 API Endpoints

@@ -8,10 +8,12 @@ import { useEffect, useState } from 'react';
 interface DelegationDashboardProps {
   isOpen: boolean;
   onClose: () => void;
+  userAddress?: string | null;
 }
 
-export default function DelegationDashboard({ isOpen, onClose }: DelegationDashboardProps) {
+export default function DelegationDashboard({ isOpen, onClose, userAddress }: DelegationDashboardProps) {
   const { account } = useSDK();
+  const address = userAddress || account;
   const [delegations, setDelegations] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalDelegations: 0,
@@ -21,18 +23,18 @@ export default function DelegationDashboard({ isOpen, onClose }: DelegationDashb
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen && account) {
+    if (isOpen && address) {
       loadDelegations();
     }
-  }, [isOpen, account]);
+  }, [isOpen, address]);
 
   const loadDelegations = async () => {
-    if (!account) return;
+    if (!address) return;
     
     setLoading(true);
     try {
-      const userDelegations = await delegationService.getUserDelegations(account);
-      const delegationStats = await delegationService.getDelegationStats(account);
+      const userDelegations = await delegationService.getUserDelegations(address);
+      const delegationStats = await delegationService.getDelegationStats(address);
       setDelegations(userDelegations);
       setStats(delegationStats);
     } catch (error) {
