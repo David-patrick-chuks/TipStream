@@ -37,7 +37,7 @@ contract SocialTipping is
      * @param content The content of the post
      */
     function createPost(string memory content) external override {
-        super.createPost(content);
+        PostManager.createPost(content);
     }
 
     /**
@@ -46,7 +46,7 @@ contract SocialTipping is
      * @return Post struct containing post data
      */
     function getPost(uint256 postId) external view override returns (SocialTippingTypes.Post memory) {
-        return super.getPost(postId);
+        return PostManager.getPost(postId);
     }
 
     /**
@@ -54,11 +54,11 @@ contract SocialTipping is
      * @param postId The ID of the post
      */
     function increaseEngagement(uint256 postId) external override {
-        super.increaseEngagement(postId);
+        PostManager.increaseEngagement(postId);
         
         // Check if any auto-tips should be triggered
         SocialTippingTypes.Post storage post = posts[postId];
-        super.checkAndExecuteAutoTips(postId, post);
+        AutoTipManager.checkAndExecuteAutoTips(postId, post);
     }
 
     /**
@@ -66,7 +66,7 @@ contract SocialTipping is
      * @param postId The ID of the post
      */
     function increaseEngagementManual(uint256 postId) external override {
-        super.increaseEngagementManual(postId);
+        PostManager.increaseEngagementManual(postId);
     }
 
     // ============ TIP MANAGEMENT ============
@@ -77,7 +77,7 @@ contract SocialTipping is
      */
     function sendTip(uint256 postId) external payable {
         SocialTippingTypes.Post storage post = posts[postId];
-        super.sendTip(postId, post);
+        TipManager.sendTip(postId, post);
     }
 
     /**
@@ -86,7 +86,7 @@ contract SocialTipping is
      * @return Total earnings in wei
      */
     function getCreatorEarnings(address creator) external view override returns (uint256) {
-        return super.getCreatorEarnings(creator);
+        return TipManager.getCreatorEarnings(creator);
     }
 
     // ============ AUTO-TIP MANAGEMENT ============
@@ -102,7 +102,7 @@ contract SocialTipping is
         require(msg.value >= amount, "Insufficient funds for auto-tip");
         
         SocialTippingTypes.Post storage post = posts[postId];
-        super.enableAutoTip(postId, threshold, amount, post);
+        AutoTipManager.enableAutoTip(postId, threshold, amount, post);
     }
 
     /**
@@ -112,7 +112,7 @@ contract SocialTipping is
      */
     function executeAutoTip(uint256 postId, uint256 autoTipIndex) external {
         SocialTippingTypes.Post storage post = posts[postId];
-        super.executeAutoTip(postId, autoTipIndex, post);
+        AutoTipManager.executeAutoTip(postId, autoTipIndex, post);
     }
 
     /**

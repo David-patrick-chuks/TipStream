@@ -12,7 +12,7 @@ contract PostManager is ISocialTippingEvents {
     uint256 public nextPostId = 1;
     mapping(uint256 => SocialTippingTypes.Post) public posts;
     
-    function createPost(string memory content) external virtual {
+    function createPost(string memory content) public virtual {
         uint256 postId = nextPostId++;
         posts[postId] = SocialTippingTypes.Post({
             id: postId,
@@ -27,16 +27,16 @@ contract PostManager is ISocialTippingEvents {
         emit PostCreated(postId, msg.sender, content, block.timestamp);
     }
     
-    function getPost(uint256 postId) external view virtual returns (SocialTippingTypes.Post memory) {
+    function getPost(uint256 postId) public view virtual returns (SocialTippingTypes.Post memory) {
         return posts[postId];
     }
     
-    function increaseEngagement(uint256 postId) external virtual {
+    function increaseEngagement(uint256 postId) public virtual {
         require(posts[postId].creator != address(0), "Post does not exist");
         posts[postId].engagement += 1;
     }
     
-    function increaseEngagementManual(uint256 postId) external virtual {
+    function increaseEngagementManual(uint256 postId) public virtual {
         require(posts[postId].creator != address(0), "Post does not exist");
         posts[postId].engagement += 1;
     }

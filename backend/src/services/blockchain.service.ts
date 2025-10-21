@@ -1,10 +1,10 @@
-import { createPublicClient, createWalletClient, formatEther, http, parseEther } from 'viem';
+import { createPublicClient, createWalletClient, formatEther, http, parseEther, WalletClient, PublicClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { monadTestnet } from 'viem/chains';
 
 export class BlockchainService {
-  private publicClient;
-  private walletClient;
+  private publicClient: PublicClient;
+  private walletClient: WalletClient | undefined;
   private contractAddress: string;
   private contractABI: any[];
 

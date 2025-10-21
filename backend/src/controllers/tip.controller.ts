@@ -91,7 +91,7 @@ export class TipController {
       );
 
       res.json({
-        id: tip._id.toString(),
+        id: (tip._id as any).toString(),
         postId: tip.postId,
         tipper: tip.tipper,
         creator: tip.creator,
@@ -144,7 +144,7 @@ export class TipController {
       await autoTip.save();
 
       res.json({
-        id: autoTip._id.toString(),
+        id: (autoTip._id as any).toString(),
         postId: autoTip.postId,
         tipper: autoTip.tipper,
         threshold: autoTip.threshold,
