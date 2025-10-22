@@ -2,12 +2,6 @@
 
 A decentralized social media platform built on Monad with MetaMask Smart Accounts, featuring automated tipping and real-time analytics.
 
-## 🏆 Hackathon Track & Bonuses
-
-- **Track**: Best Consumer Application 
-- **Bonuses**:
-  - Most Innovative Use of Delegations 
-  - Best Farcaster Mini App 
 
 
 ## 🚀 Features
@@ -48,7 +42,7 @@ tipstream/
 │   ├── src/
 │   │   └── SocialTipping.sol # Main contract
 │   ├── script/
-│   │   └── SocialTipping.s.sol # Deployment script
+│   │   └── SocialTipping.sol # Deployment script
 │   └── foundry.toml    # Foundry configuration
 ├── frontend/           # Next.js frontend
 │   ├── app/
@@ -86,7 +80,7 @@ forge test
 export PRIVATE_KEY="your-private-key"
 
 # Deploy contract
-forge script script/Counter.s.sol --rpc-url monad_testnet --broadcast --verify
+forge script script/SocialTipping.sol --rpc-url monad_testnet --broadcast --verify
 ```
 
 ### 3. Frontend Setup
@@ -96,14 +90,6 @@ cd frontend
 npm install
 npm run dev
 ```
-
-## 🎯 Demo Flow
-
-1. **Connect Wallet**: User connects MetaMask Smart Account
-2. **Create Post**: User creates content post
-3. **Send Tips**: Other users can tip the creator
-4. **Auto-Tip Setup**: Users can set up automatic tipping based on engagement
-5. **Analytics**: Real-time analytics and delegation management
 
 ## 🔧 Smart Contract Functions
 
@@ -136,13 +122,11 @@ The platform provides REST APIs for:
 - **PostFeed**: Display posts with tipping functionality
 - **TipInterface**: Manual and auto-tip setup
 
-## 🚀 Deployment
+## 🏆 Hackathon Track & Bonuses
 
-### Smart Contract
-Deploy to Monad testnet using Foundry scripts.
-
-### Frontend
-Deploy to Vercel or similar platform.
-
+- **Track**: Best Consumer Application 
+- **Bonuses**:
+  - Most Innovative Use of Delegations 
+  - Best Farcaster Mini App 
 
 -Built for MetaMask Smart Accounts x Monad Dev Cook-Off Hackathon
