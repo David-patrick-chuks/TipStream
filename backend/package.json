@@ -1,32 +1,38 @@
 {
-  "name": "social-tipping-backend",
+  "name": "tipstream-backend",
   "version": "1.0.0",
-  "description": "Backend API for Web3 Social Tipping Platform",
+  "description": "Backend API for TipStream Platform",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "jest"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "viem": "^2.0.0",
-    "mongoose": "^8.0.0",
-    "zod": "^3.22.4",
+    "express": "^4.18.2",
+    "express-fileupload": "^1.5.2",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "mongoose": "^8.0.0",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.2",
+    "ts-node": "^10.9.2",
+    "viem": "^2.0.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/express-fileupload": "^1.5.1",
+    "@types/jest": "^29.5.8",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^2.0.0",
     "@types/node": "^20.10.0",
-    "typescript": "^5.3.0",
-    "tsx": "^4.6.0",
     "jest": "^29.7.0",
-    "@types/jest": "^29.5.8"
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
   }
 }

@@ -1,12 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TipController = void 0;
+const express_1 = require("express");
+const zod_1 = require("zod");
 const AutoTip_model_1 = require("../models/AutoTip.model");
 const Post_model_1 = require("../models/Post.model");
 const Tip_model_1 = require("../models/Tip.model");
 const User_model_1 = require("../models/User.model");
-const express_1 = require("express");
-const zod_1 = require("zod");
 const sendTipSchema = zod_1.z.object({
     postId: zod_1.z.string(),
     amount: zod_1.z.string().regex(/^\d+(\.\d+)?$/),
@@ -19,8 +19,7 @@ const autoTipSchema = zod_1.z.object({
     tipper: zod_1.z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 class TipController {
-    constructor(blockchainService) {
-        this.blockchainService = blockchainService;
+    constructor() {
         this.router = (0, express_1.Router)();
         this.setupRoutes();
     }
@@ -35,39 +34,40 @@ class TipController {
     async sendTip(req, res) {
         try {
             const { postId, amount, tipper } = sendTipSchema.parse(req.body);
-            const privateKey = req.headers['x-private-key'];
-            if (!privateKey) {
-                return res.status(401).json({ error: 'Private key required' });
+            const txHash = req.headers['x-tx-hash'];
+            if (!txHash) {
+                return res.status(401).json({ error: 'Transaction hash required' });
             }
             // Verify post exists
             const post = await Post_model_1.Post.findOne({ postId });
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
-            // Send tip on blockchain
-            const txHash = await this.blockchainService.sendTip(BigInt(postId), amount, privateKey);
-            // Create tip record in database
+            // Create tip record in database with transaction hash
             const tip = new Tip_model_1.Tip({
                 postId,
                 tipper,
                 creator: post.creator,
-                amount: this.blockchainService.parseEther(amount).toString(),
+                amount: amount, // Store as string, no need to convert
                 timestamp: Date.now().toString(),
                 txHash,
             });
             await tip.save();
+            // Debug: Log the amount and its type
+            console.log('Amount received:', amount, 'Type:', typeof amount);
+            console.log('Number(amount):', Number(amount), 'Type:', typeof Number(amount));
             // Update post stats
             await Post_model_1.Post.findOneAndUpdate({ postId }, {
                 $inc: {
                     tipCount: 1,
-                    totalTips: parseFloat(this.blockchainService.formatEther(this.blockchainService.parseEther(amount)))
+                    totalTips: Number(amount) // Ensure it's a number
                 }
             });
             // Update creator earnings
             await User_model_1.User.findOneAndUpdate({ address: post.creator }, {
                 $inc: {
                     tipCount: 1,
-                    totalEarnings: parseFloat(this.blockchainService.formatEther(this.blockchainService.parseEther(amount)))
+                    totalEarnings: Number(amount) // Ensure it's a number
                 }
             }, { upsert: true, new: true });
             res.json({
@@ -89,23 +89,21 @@ class TipController {
     async enableAutoTip(req, res) {
         try {
             const { postId, threshold, amount, tipper } = autoTipSchema.parse(req.body);
-            const privateKey = req.headers['x-private-key'];
-            if (!privateKey) {
-                return res.status(401).json({ error: 'Private key required' });
+            const txHash = req.headers['x-tx-hash'];
+            if (!txHash) {
+                return res.status(401).json({ error: 'Transaction hash required' });
             }
             // Verify post exists
             const post = await Post_model_1.Post.findOne({ postId });
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
-            // Enable auto-tip on blockchain
-            const txHash = await this.blockchainService.enableAutoTip(BigInt(postId), BigInt(threshold), amount, privateKey);
-            // Create auto-tip record in database
+            // Create auto-tip record in database with transaction hash
             const autoTip = new AutoTip_model_1.AutoTip({
                 postId,
                 tipper,
                 threshold,
-                amount: this.blockchainService.parseEther(amount).toString(),
+                amount: amount, // Store as string, no need to convert
                 active: true,
                 timestamp: Date.now().toString(),
                 txHash,
@@ -131,12 +129,10 @@ class TipController {
     async executeAutoTip(req, res) {
         try {
             const { postId, autoTipIndex } = req.body;
-            const privateKey = req.headers['x-private-key'];
-            if (!privateKey) {
-                return res.status(401).json({ error: 'Private key required' });
+            const txHash = req.headers['x-tx-hash'];
+            if (!txHash) {
+                return res.status(400).json({ error: 'Transaction hash required' });
             }
-            // Execute auto-tip on blockchain
-            const txHash = await this.blockchainService.executeAutoTip(BigInt(postId), BigInt(autoTipIndex), privateKey);
             // Update auto-tip status in database
             const autoTip = await AutoTip_model_1.AutoTip.findOne({ postId, active: true })
                 .skip(Number(autoTipIndex));
@@ -155,6 +151,20 @@ class TipController {
                         txHash,
                     });
                     await tip.save();
+                    // Update post stats
+                    await Post_model_1.Post.findOneAndUpdate({ postId }, {
+                        $inc: {
+                            tipCount: 1,
+                            totalTips: Number(autoTip.amount) // Ensure it's a number
+                        }
+                    });
+                    // Update creator earnings
+                    await User_model_1.User.findOneAndUpdate({ address: post.creator }, {
+                        $inc: {
+                            tipCount: 1,
+                            totalEarnings: Number(autoTip.amount) // Ensure it's a number
+                        }
+                    }, { upsert: true, new: true });
                 }
             }
             res.json({

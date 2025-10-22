@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-// Events interface for Social Tipping Platform
+// Events interface for TipStream Platform
 interface ISocialTippingEvents {
     event PostCreated(uint256 indexed postId, address indexed creator, string content, uint256 timestamp);
     event TipSent(uint256 indexed postId, address indexed tipper, address indexed creator, uint256 amount);

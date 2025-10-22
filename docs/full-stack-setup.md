@@ -1,4 +1,4 @@
-# 🚀 Full Stack Setup Guide - Web3 Social Tipping Platform
+# 🚀 Full Stack Setup Guide - TipStream Platform
 
 ## 📋 Prerequisites
 
@@ -11,7 +11,7 @@
 ## 🏗️ Project Structure
 
 ```
-web3-social-tipping/
+tipstream/
 ├── contracts/          # Smart contracts (Foundry)
 ├── frontend/           # Next.js frontend
 ├── backend/            # Express.js backend

@@ -1,11 +1,11 @@
-import { Post } from '../models/Post.model';
-import { User } from '../models/User.model';
-import { BlockchainService } from '../services/blockchain.service';
 import { Request, Response, Router } from 'express';
 import { z } from 'zod';
+import { Post } from '../models/Post.model';
+import { User } from '../models/User.model';
+import CloudinaryService from '../services/cloudinary.service';
 
 const createPostSchema = z.object({
-  content: z.string().min(1).max(500),
+  content: z.string().min(1).max(2000),
   creator: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
 });
 
@@ -17,7 +17,7 @@ const getPostsSchema = z.object({
 export class PostController {
   public router: Router;
 
-  constructor(private blockchainService: BlockchainService) {
+  constructor() {
     this.router = Router();
     this.setupRoutes();
   }
@@ -26,6 +26,7 @@ export class PostController {
     this.router.get('/', this.getPosts.bind(this));
     this.router.get('/:postId', this.getPost.bind(this));
     this.router.post('/', this.createPost.bind(this));
+    this.router.post('/with-images', this.createPostWithImages.bind(this));
     this.router.put('/:postId/engagement', this.increaseEngagement.bind(this));
   }
 
@@ -41,21 +42,37 @@ export class PostController {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limitNum)
-        .populate('creator', 'address totalEarnings postCount', User)
         .lean();
 
       const total = await Post.countDocuments();
+
+      // Get creator stats for all unique creators
+      const uniqueCreators = [...new Set(posts.map(post => post.creator))];
+      const creatorStats = await User.find({ address: { $in: uniqueCreators } })
+        .select('address totalEarnings postCount')
+        .lean();
+
+      // Create a map for quick lookup
+      const creatorStatsMap = new Map(
+        creatorStats.map(creator => [creator.address, creator])
+      );
 
       res.json({
         posts: posts.map(post => ({
           id: post.postId,
           creator: post.creator,
           content: post.content,
+          images: post.images || [],
           timestamp: post.timestamp,
           totalTips: post.totalTips,
           tipCount: post.tipCount,
           engagement: post.engagement,
-          creatorStats: post.creator,
+          commentCount: post.commentCount || 0,
+          creatorStats: creatorStatsMap.get(post.creator) || {
+            address: post.creator,
+            totalEarnings: '0',
+            postCount: 0
+          },
         })),
         pagination: {
           page: pageNum,
@@ -75,13 +92,16 @@ export class PostController {
     try {
       const { postId } = req.params;
 
-      const post = await Post.findOne({ postId })
-        .populate('creator', 'address totalEarnings postCount', User)
-        .lean();
+      const post = await Post.findOne({ postId }).lean();
 
       if (!post) {
         return res.status(404).json({ error: 'Post not found' });
       }
+
+      // Get creator stats
+      const creatorStats = await User.findOne({ address: post.creator })
+        .select('address totalEarnings postCount')
+        .lean();
 
       // Get recent tips and active auto-tips
       const [recentTips, activeAutoTips] = await Promise.all([
@@ -110,7 +130,11 @@ export class PostController {
         totalTips: post.totalTips,
         tipCount: post.tipCount,
         engagement: post.engagement,
-        creatorStats: post.creator,
+        creatorStats: creatorStats || {
+          address: post.creator,
+          totalEarnings: '0',
+          postCount: 0
+        },
         recentTips: recentTips.map(item => item.tips),
         activeAutoTips: activeAutoTips.map(item => item.autoTips),
       });
@@ -124,14 +148,10 @@ export class PostController {
   async createPost(req: Request, res: Response) {
     try {
       const { content, creator } = createPostSchema.parse(req.body);
-      const privateKey = req.headers['x-private-key'] as string;
+      const txHash = req.headers['x-tx-hash'] as string;
 
-      if (!privateKey) {
-        return res.status(401).json({ error: 'Private key required' });
-      }
-
-      // Create post on blockchain
-      const txHash = await this.blockchainService.createPost(content, privateKey);
+      // Use the transaction hash from MetaMask signing
+      const finalTxHash = txHash || 'demo-tx-hash';
 
       // Generate unique post ID
       const postId = Date.now().toString();
@@ -142,9 +162,10 @@ export class PostController {
         creator,
         content,
         timestamp: Date.now().toString(),
-        totalTips: '0',
+        totalTips: 0,
         tipCount: 0,
         engagement: 0,
+        commentCount: 0,
       });
 
       await post.save();
@@ -160,12 +181,97 @@ export class PostController {
         id: post.postId,
         creator: post.creator,
         content: post.content,
+        images: post.images || [],
         timestamp: post.timestamp,
-        txHash,
+        txHash: finalTxHash,
       });
     } catch (error) {
       console.error('Error creating post:', error);
       res.status(500).json({ error: 'Failed to create post' });
+    }
+  }
+
+  // Create a new post with images
+  async createPostWithImages(req: Request, res: Response) {
+    try {
+      const { content, creator } = createPostSchema.parse(req.body);
+      const txHash = req.headers['x-tx-hash'] as string;
+
+      // Check if files were uploaded
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] } | Express.Multer.File[] | undefined;
+      
+      if (!files) {
+        return res.status(400).json({ error: 'No files uploaded' });
+      }
+
+      // Handle single file or multiple files
+      const fileArray = Array.isArray(files) ? files : Object.values(files).flat();
+      
+      if (fileArray.length > 4) {
+        return res.status(400).json({ error: 'Maximum 4 images allowed per post' });
+      }
+
+      // Validate files - check for empty files
+      const validFiles = fileArray.filter(file => {
+        if (!file || !file.buffer || file.buffer.length === 0) {
+          console.log('Invalid file detected:', file);
+          return false;
+        }
+        return true;
+      });
+
+      if (validFiles.length === 0) {
+        return res.status(400).json({ error: 'No valid files uploaded' });
+      }
+
+      // Upload images to Cloudinary
+      const uploadedImages = await CloudinaryService.uploadImages(validFiles, 'tipstream/posts');
+
+      // Use the transaction hash from MetaMask signing
+      const finalTxHash = txHash || 'demo-tx-hash';
+
+      // Generate unique post ID
+      const postId = Date.now().toString();
+
+      // Create post in database with images
+      const post = new Post({
+        postId,
+        creator,
+        content,
+        images: uploadedImages.map(img => ({
+          publicId: img.public_id,
+          url: img.secure_url,
+          width: img.width,
+          height: img.height,
+          format: img.format
+        })),
+        timestamp: Date.now().toString(),
+        totalTips: 0,
+        tipCount: 0,
+        engagement: 0,
+        commentCount: 0,
+      });
+
+      await post.save();
+
+      // Update user stats
+      await User.findOneAndUpdate(
+        { address: creator },
+        { $inc: { postCount: 1 } },
+        { upsert: true, new: true }
+      );
+
+      res.json({
+        id: post.postId,
+        creator: post.creator,
+        content: post.content,
+        images: post.images,
+        timestamp: post.timestamp,
+        txHash: finalTxHash,
+      });
+    } catch (error) {
+      console.error('Error creating post with images:', error);
+      res.status(500).json({ error: 'Failed to create post with images' });
     }
   }
 

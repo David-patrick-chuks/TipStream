@@ -1,9 +1,7 @@
-import { BlockchainService } from '../services/blockchain.service';
 import { Request, Response, Router } from 'express';
 export declare class TipController {
-    private blockchainService;
     router: Router;
-    constructor(blockchainService: BlockchainService);
+    constructor();
     private setupRoutes;
     sendTip(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;
     enableAutoTip(req: Request, res: Response): Promise<Response<any, Record<string, any>> | undefined>;

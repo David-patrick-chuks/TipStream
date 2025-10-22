@@ -1,7 +1,7 @@
 import mongoose, { Document } from 'mongoose';
 export interface IUser extends Document {
     address: string;
-    totalEarnings: string;
+    totalEarnings: number;
     postCount: number;
     tipCount: number;
     createdAt: Date;

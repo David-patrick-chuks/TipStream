@@ -4,7 +4,7 @@ export interface IPost extends Document {
     creator: string;
     content: string;
     timestamp: string;
-    totalTips: string;
+    totalTips: number;
     tipCount: number;
     engagement: number;
     createdAt: Date;

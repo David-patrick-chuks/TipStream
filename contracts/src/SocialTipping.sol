@@ -11,7 +11,7 @@ import "./DelegationManager.sol";
 
 /**
  * @title SocialTipping
- * @dev Main contract orchestrating the Web3 Social Tipping Platform
+ * @dev Main contract orchestrating the TipStream Platform
  * @notice Modular architecture with separate managers for different functionalities
  */
 contract SocialTipping is 

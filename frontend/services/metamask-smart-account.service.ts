@@ -1,5 +1,5 @@
 import { createDelegation, getDeleGatorEnvironment } from '@metamask/delegation-toolkit';
-import { createPublicClient, http, parseEther, PublicClient } from 'viem';
+import { createPublicClient, encodeFunctionData, http, parseEther, PublicClient } from 'viem';
 import { monadTestnet } from 'viem/chains';
 
 export interface SmartAccountInfo {
@@ -12,14 +12,56 @@ export class MetaMaskSmartAccountService {
   private publicClient: PublicClient;
   private contractAddress: string;
   private connectedAddress: string | null = null;
+  private contractABI: Array<{
+    type: string;
+    name: string;
+    inputs: Array<{ name: string; type: string }>;
+    outputs: Array<unknown>;
+    stateMutability: string;
+  }>;
 
   constructor() {
     this.contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000';
+    // Contract ABI (same as backend)
+    this.contractABI = [
+      {
+        "type": "function",
+        "name": "createPost",
+        "inputs": [{"name": "content", "type": "string"}],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+      },
+      {
+        "type": "function",
+        "name": "sendTip",
+        "inputs": [{"name": "postId", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "payable"
+      },
+      {
+        "type": "function",
+        "name": "enableAutoTip",
+        "inputs": [
+          {"name": "postId", "type": "uint256"},
+          {"name": "threshold", "type": "uint256"},
+          {"name": "amount", "type": "uint256"}
+        ],
+        "outputs": [],
+        "stateMutability": "payable"
+      }
+    ];
     
-    // Initialize public client for Monad testnet
+    // Initialize public client for local blockchain (Anvil)
     this.publicClient = createPublicClient({
-      chain: monadTestnet,
-      transport: http(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz'),
+      chain: {
+        id: 31337, // Anvil default chain ID
+        name: 'Anvil',
+        nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+        rpcUrls: {
+          default: { http: [process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'http://127.0.0.1:8545'] },
+        },
+      },
+      transport: http(process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'http://127.0.0.1:8545'),
     });
   }
 
@@ -117,7 +159,7 @@ export class MetaMaskSmartAccountService {
   }
 
   /**
-   * Execute a transaction
+   * Execute a transaction through MetaMask Smart Account
    */
   async executeTransaction(
     to: string,
@@ -129,7 +171,7 @@ export class MetaMaskSmartAccountService {
         throw new Error('No account connected');
       }
 
-      // Send transaction through MetaMask
+      // Send transaction through MetaMask Smart Account
       const hash = await (window as unknown as { ethereum: { request: (params: unknown) => Promise<unknown> } }).ethereum.request({
         method: 'eth_sendTransaction',
         params: [{
@@ -144,6 +186,215 @@ export class MetaMaskSmartAccountService {
     } catch (error) {
       console.error('Error executing transaction:', error);
       throw new Error('Failed to execute transaction');
+    }
+  }
+
+  /**
+   * Execute a contract call through MetaMask Smart Account
+   */
+  async executeContractCall(
+    contractAddress: string,
+    functionName: string,
+    args: unknown[],
+    value?: string
+  ): Promise<string> {
+    try {
+      if (!this.connectedAddress) {
+        throw new Error('No account connected');
+      }
+
+      // For now, we'll use a simple approach
+      // In a real Smart Account implementation, this would be more complex
+      const data = '0x'; // This would be the encoded function call data
+
+      return await this.executeTransaction(
+        contractAddress,
+        value || '0',
+        data
+      );
+    } catch (error) {
+      console.error('Error executing contract call:', error);
+      throw new Error('Failed to execute contract call');
+    }
+  }
+
+  /**
+   * Get the MetaMask provider specifically
+   */
+  private getMetaMaskProvider() {
+    if (typeof window === 'undefined') {
+      throw new Error('Window not available');
+    }
+
+    // Check if MetaMask is available
+    const ethereum = (window as unknown as { ethereum?: any }).ethereum;
+    if (!ethereum) {
+      throw new Error('No Ethereum provider found');
+    }
+
+    // If there are multiple providers, find MetaMask specifically
+    if (ethereum.providers && Array.isArray(ethereum.providers)) {
+      const metamaskProvider = ethereum.providers.find((provider: any) => provider.isMetaMask);
+      if (metamaskProvider) {
+        return metamaskProvider;
+      }
+    }
+
+    // If it's MetaMask directly
+    if (ethereum.isMetaMask) {
+      return ethereum;
+    }
+
+    throw new Error('MetaMask not found. Please install MetaMask and disable other wallet extensions.');
+  }
+
+  /**
+   * Sign and send a transaction using MetaMask
+   * This is the proper way to interact with MetaMask Smart Accounts
+   */
+  async signAndSendTransaction(
+    to: string,
+    data: string,
+    value: string = '0'
+  ): Promise<string> {
+    try {
+      // Get the specific MetaMask provider
+      const metamaskProvider = this.getMetaMaskProvider();
+
+      // Get current connected account from MetaMask specifically
+      const accounts = await metamaskProvider.request({
+        method: 'eth_accounts',
+      });
+
+      const fromAddress = (accounts as string[])[0];
+      if (!fromAddress) {
+        throw new Error('No account connected to MetaMask');
+      }
+
+      // Request transaction through MetaMask specifically
+      console.log('Sending transaction with params:', {
+        from: fromAddress,
+        to: to,
+        value: `0x${BigInt(value).toString(16)}`, // Convert to hex string
+        data: data,
+      });
+
+      const txHash = await metamaskProvider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: fromAddress,
+          to: to,
+          value: `0x${BigInt(value).toString(16)}`, // Convert to hex string
+          data: data,
+        }],
+      });
+
+      return txHash as string;
+    } catch (error) {
+      console.error('Error signing transaction:', error);
+      throw new Error('Failed to sign transaction');
+    }
+  }
+
+  /**
+   * Create a post transaction using MetaMask signing
+   */
+  async createPostTransaction(content: string): Promise<string> {
+    try {
+      // Get the specific MetaMask provider
+      const metamaskProvider = this.getMetaMaskProvider();
+
+      // Get current connected account from MetaMask specifically
+      const accounts = await metamaskProvider.request({
+        method: 'eth_accounts',
+      });
+
+      const address = (accounts as string[])[0];
+      if (!address) {
+        throw new Error('No account connected to MetaMask');
+      }
+
+      // Encode the createPost function call
+      const data = encodeFunctionData({
+        abi: this.contractABI,
+        functionName: 'createPost',
+        args: [content],
+      });
+
+      return await this.signAndSendTransaction(this.contractAddress, data);
+    } catch (error) {
+      console.error('Error creating post transaction:', error);
+      throw new Error('Failed to create post transaction');
+    }
+  }
+
+  /**
+   * Send a tip transaction using MetaMask signing
+   */
+  async sendTipTransaction(postId: string, amount: string): Promise<string> {
+    try {
+      // Get the specific MetaMask provider
+      const metamaskProvider = this.getMetaMaskProvider();
+
+      // Get current connected account from MetaMask specifically
+      const accounts = await metamaskProvider.request({
+        method: 'eth_accounts',
+      });
+
+      const address = (accounts as string[])[0];
+      if (!address) {
+        throw new Error('No account connected to MetaMask');
+      }
+
+      // Convert ETH amount to wei
+      const valueInWei = parseEther(amount).toString();
+
+      // Encode the sendTip function call
+      const data = encodeFunctionData({
+        abi: this.contractABI,
+        functionName: 'sendTip',
+        args: [BigInt(postId)],
+      });
+
+      return await this.signAndSendTransaction(this.contractAddress, data, valueInWei);
+    } catch (error) {
+      console.error('Error sending tip transaction:', error);
+      throw new Error('Failed to send tip transaction');
+    }
+  }
+
+  /**
+   * Enable auto-tip transaction using MetaMask signing
+   */
+  async enableAutoTipTransaction(postId: string, threshold: number, amount: string): Promise<string> {
+    try {
+      // Get the specific MetaMask provider
+      const metamaskProvider = this.getMetaMaskProvider();
+
+      // Get current connected account from MetaMask specifically
+      const accounts = await metamaskProvider.request({
+        method: 'eth_accounts',
+      });
+
+      const address = (accounts as string[])[0];
+      if (!address) {
+        throw new Error('No account connected to MetaMask');
+      }
+
+      // Convert ETH amount to wei
+      const valueInWei = parseEther(amount).toString();
+
+      // Encode the enableAutoTip function call
+      const data = encodeFunctionData({
+        abi: this.contractABI,
+        functionName: 'enableAutoTip',
+        args: [BigInt(postId), BigInt(threshold), parseEther(amount)],
+      });
+
+      return await this.signAndSendTransaction(this.contractAddress, data, valueInWei);
+    } catch (error) {
+      console.error('Error enabling auto-tip transaction:', error);
+      throw new Error('Failed to enable auto-tip transaction');
     }
   }
 

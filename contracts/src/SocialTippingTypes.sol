@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-// Core data structures for Social Tipping Platform
+// Core data structures for TipStream Platform
 library SocialTippingTypes {
     struct Post {
         uint256 id;

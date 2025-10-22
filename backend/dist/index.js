@@ -4,30 +4,33 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.app = void 0;
-const analytics_controller_1 = require("./controllers/analytics.controller");
-const post_controller_1 = require("./controllers/post.controller");
-const tip_controller_1 = require("./controllers/tip.controller");
-const user_controller_1 = require("./controllers/user.controller");
-const blockchain_service_1 = require("./services/blockchain.service");
-const database_service_1 = require("./services/database.service");
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const express_1 = __importDefault(require("express"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
+const analytics_controller_1 = require("./controllers/analytics.controller");
+const post_controller_1 = require("./controllers/post.controller");
+const tip_controller_1 = require("./controllers/tip.controller");
+const user_controller_1 = require("./controllers/user.controller");
+const database_service_1 = require("./services/database.service");
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 exports.app = app;
-const blockchainService = new blockchain_service_1.BlockchainService();
 // Middleware
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-tx-hash']
+}));
 app.use((0, morgan_1.default)('combined'));
 app.use(express_1.default.json());
 // Controllers
-const postController = new post_controller_1.PostController(blockchainService);
-const tipController = new tip_controller_1.TipController(blockchainService);
+const postController = new post_controller_1.PostController();
+const tipController = new tip_controller_1.TipController();
 const userController = new user_controller_1.UserController();
 const analyticsController = new analytics_controller_1.AnalyticsController();
 // Routes

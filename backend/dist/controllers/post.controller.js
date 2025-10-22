@@ -1,10 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PostController = void 0;
-const Post_model_1 = require("../models/Post.model");
-const User_model_1 = require("../models/User.model");
 const express_1 = require("express");
 const zod_1 = require("zod");
+const Post_model_1 = require("../models/Post.model");
+const User_model_1 = require("../models/User.model");
 const createPostSchema = zod_1.z.object({
     content: zod_1.z.string().min(1).max(500),
     creator: zod_1.z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -14,8 +14,7 @@ const getPostsSchema = zod_1.z.object({
     limit: zod_1.z.string().optional().default('10'),
 });
 class PostController {
-    constructor(blockchainService) {
-        this.blockchainService = blockchainService;
+    constructor() {
         this.router = (0, express_1.Router)();
         this.setupRoutes();
     }
@@ -36,9 +35,15 @@ class PostController {
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limitNum)
-                .populate('creator', 'address totalEarnings postCount', User_model_1.User)
                 .lean();
             const total = await Post_model_1.Post.countDocuments();
+            // Get creator stats for all unique creators
+            const uniqueCreators = [...new Set(posts.map(post => post.creator))];
+            const creatorStats = await User_model_1.User.find({ address: { $in: uniqueCreators } })
+                .select('address totalEarnings postCount')
+                .lean();
+            // Create a map for quick lookup
+            const creatorStatsMap = new Map(creatorStats.map(creator => [creator.address, creator]));
             res.json({
                 posts: posts.map(post => ({
                     id: post.postId,
@@ -48,7 +53,11 @@ class PostController {
                     totalTips: post.totalTips,
                     tipCount: post.tipCount,
                     engagement: post.engagement,
-                    creatorStats: post.creator,
+                    creatorStats: creatorStatsMap.get(post.creator) || {
+                        address: post.creator,
+                        totalEarnings: '0',
+                        postCount: 0
+                    },
                 })),
                 pagination: {
                     page: pageNum,
@@ -67,12 +76,14 @@ class PostController {
     async getPost(req, res) {
         try {
             const { postId } = req.params;
-            const post = await Post_model_1.Post.findOne({ postId })
-                .populate('creator', 'address totalEarnings postCount', User_model_1.User)
-                .lean();
+            const post = await Post_model_1.Post.findOne({ postId }).lean();
             if (!post) {
                 return res.status(404).json({ error: 'Post not found' });
             }
+            // Get creator stats
+            const creatorStats = await User_model_1.User.findOne({ address: post.creator })
+                .select('address totalEarnings postCount')
+                .lean();
             // Get recent tips and active auto-tips
             const [recentTips, activeAutoTips] = await Promise.all([
                 Post_model_1.Post.aggregate([
@@ -99,7 +110,11 @@ class PostController {
                 totalTips: post.totalTips,
                 tipCount: post.tipCount,
                 engagement: post.engagement,
-                creatorStats: post.creator,
+                creatorStats: creatorStats || {
+                    address: post.creator,
+                    totalEarnings: '0',
+                    postCount: 0
+                },
                 recentTips: recentTips.map(item => item.tips),
                 activeAutoTips: activeAutoTips.map(item => item.autoTips),
             });
@@ -113,12 +128,9 @@ class PostController {
     async createPost(req, res) {
         try {
             const { content, creator } = createPostSchema.parse(req.body);
-            const privateKey = req.headers['x-private-key'];
-            if (!privateKey) {
-                return res.status(401).json({ error: 'Private key required' });
-            }
-            // Create post on blockchain
-            const txHash = await this.blockchainService.createPost(content, privateKey);
+            const txHash = req.headers['x-tx-hash'];
+            // Use the transaction hash from MetaMask signing
+            const finalTxHash = txHash || 'demo-tx-hash';
             // Generate unique post ID
             const postId = Date.now().toString();
             // Create post in database
@@ -139,7 +151,7 @@ class PostController {
                 creator: post.creator,
                 content: post.content,
                 timestamp: post.timestamp,
-                txHash,
+                txHash: finalTxHash,
             });
         }
         catch (error) {

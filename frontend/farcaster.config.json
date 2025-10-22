@@ -1,10 +1,10 @@
 {
-  "name": "Web3 Social Tipping",
+  "name": "TipStream",
   "description": "Decentralized social media platform with automated tipping on Monad",
   "version": "1.0.0",
   "manifest": {
-    "name": "Web3 Social Tipping Platform",
-    "short_name": "SocialTipping",
+    "name": "TipStream Platform",
+    "short_name": "TipStream",
     "description": "Built on Monad with MetaMask Smart Accounts",
     "start_url": "/",
     "display": "standalone",
@@ -24,7 +24,7 @@
     ]
   },
   "farcaster": {
-    "appId": "social-tipping-platform",
+    "appId": "tipstream-platform",
     "permissions": [
       "user:read",
       "cast:read",

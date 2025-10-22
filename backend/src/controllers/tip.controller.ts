@@ -1,10 +1,9 @@
+import { Request, Response, Router } from 'express';
+import { z } from 'zod';
 import { AutoTip } from '../models/AutoTip.model';
 import { Post } from '../models/Post.model';
 import { Tip } from '../models/Tip.model';
 import { User } from '../models/User.model';
-import { BlockchainService } from '../services/blockchain.service';
-import { Request, Response, Router } from 'express';
-import { z } from 'zod';
 
 const sendTipSchema = z.object({
   postId: z.string(),
@@ -22,7 +21,7 @@ const autoTipSchema = z.object({
 export class TipController {
   public router: Router;
 
-  constructor(private blockchainService: BlockchainService) {
+  constructor() {
     this.router = Router();
     this.setupRoutes();
   }
@@ -39,10 +38,10 @@ export class TipController {
   async sendTip(req: Request, res: Response) {
     try {
       const { postId, amount, tipper } = sendTipSchema.parse(req.body);
-      const privateKey = req.headers['x-private-key'] as string;
+      const txHash = req.headers['x-tx-hash'] as string;
 
-      if (!privateKey) {
-        return res.status(401).json({ error: 'Private key required' });
+      if (!txHash) {
+        return res.status(401).json({ error: 'Transaction hash required' });
       }
 
       // Verify post exists
@@ -52,15 +51,17 @@ export class TipController {
         return res.status(404).json({ error: 'Post not found' });
       }
 
-      // Send tip on blockchain
-      const txHash = await this.blockchainService.sendTip(BigInt(postId), amount, privateKey);
+      // Prevent self-tipping
+      if (tipper.toLowerCase() === post.creator.toLowerCase()) {
+        return res.status(400).json({ error: 'You cannot tip your own post' });
+      }
 
-      // Create tip record in database
+      // Create tip record in database with transaction hash
       const tip = new Tip({
         postId,
         tipper,
         creator: post.creator,
-        amount: this.blockchainService.parseEther(amount).toString(),
+        amount: amount, // Store as string, no need to convert
         timestamp: Date.now().toString(),
         txHash,
       });
@@ -73,7 +74,7 @@ export class TipController {
         { 
           $inc: { 
             tipCount: 1,
-            totalTips: parseFloat(this.blockchainService.formatEther(this.blockchainService.parseEther(amount)))
+            totalTips: Number(amount) // Ensure it's a number
           } 
         }
       );
@@ -84,7 +85,7 @@ export class TipController {
         { 
           $inc: { 
             tipCount: 1,
-            totalEarnings: parseFloat(this.blockchainService.formatEther(this.blockchainService.parseEther(amount)))
+            totalEarnings: Number(amount) // Ensure it's a number
           } 
         },
         { upsert: true, new: true }
@@ -109,10 +110,10 @@ export class TipController {
   async enableAutoTip(req: Request, res: Response) {
     try {
       const { postId, threshold, amount, tipper } = autoTipSchema.parse(req.body);
-      const privateKey = req.headers['x-private-key'] as string;
+      const txHash = req.headers['x-tx-hash'] as string;
 
-      if (!privateKey) {
-        return res.status(401).json({ error: 'Private key required' });
+      if (!txHash) {
+        return res.status(401).json({ error: 'Transaction hash required' });
       }
 
       // Verify post exists
@@ -122,20 +123,17 @@ export class TipController {
         return res.status(404).json({ error: 'Post not found' });
       }
 
-      // Enable auto-tip on blockchain
-      const txHash = await this.blockchainService.enableAutoTip(
-        BigInt(postId),
-        BigInt(threshold),
-        amount,
-        privateKey
-      );
+      // Prevent self auto-tipping
+      if (tipper.toLowerCase() === post.creator.toLowerCase()) {
+        return res.status(400).json({ error: 'You cannot set up auto-tips for your own post' });
+      }
 
-      // Create auto-tip record in database
+      // Create auto-tip record in database with transaction hash
       const autoTip = new AutoTip({
         postId,
         tipper,
         threshold,
-        amount: this.blockchainService.parseEther(amount).toString(),
+        amount: amount, // Store as string, no need to convert
         active: true,
         timestamp: Date.now().toString(),
         txHash,
@@ -163,18 +161,11 @@ export class TipController {
   async executeAutoTip(req: Request, res: Response) {
     try {
       const { postId, autoTipIndex } = req.body;
-      const privateKey = req.headers['x-private-key'] as string;
+      const txHash = req.headers['x-tx-hash'] as string;
 
-      if (!privateKey) {
-        return res.status(401).json({ error: 'Private key required' });
+      if (!txHash) {
+        return res.status(400).json({ error: 'Transaction hash required' });
       }
-
-      // Execute auto-tip on blockchain
-      const txHash = await this.blockchainService.executeAutoTip(
-        BigInt(postId),
-        BigInt(autoTipIndex),
-        privateKey
-      );
 
       // Update auto-tip status in database
       const autoTip = await AutoTip.findOne({ postId, active: true })
@@ -197,6 +188,29 @@ export class TipController {
           });
 
           await tip.save();
+
+          // Update post stats
+          await Post.findOneAndUpdate(
+            { postId },
+            { 
+              $inc: { 
+                tipCount: 1,
+                totalTips: Number(autoTip.amount) // Ensure it's a number
+              } 
+            }
+          );
+
+          // Update creator earnings
+          await User.findOneAndUpdate(
+            { address: post.creator },
+            { 
+              $inc: { 
+                tipCount: 1,
+                totalEarnings: Number(autoTip.amount) // Ensure it's a number
+              } 
+            },
+            { upsert: true, new: true }
+          );
         }
       }
 

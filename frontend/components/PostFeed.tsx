@@ -2,23 +2,27 @@
 
 import { apiService } from '@/services/api.service';
 import { delegationService } from '@/services/delegation.service';
+import { metaMaskSmartAccountService } from '@/services/metamask-smart-account.service';
 import { Post } from '@/types';
-import { Heart, MessageCircle, Send, Zap, Shield } from 'lucide-react';
 import { useSDK } from '@metamask/sdk-react';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import DelegationStats from './DelegationStats';
+import PostCard from './PostCard';
 
 interface PostFeedProps {
   posts: Post[];
+  onViewProfile?: (address: string) => void;
 }
 
-export default function PostFeed({ posts }: PostFeedProps) {
+export default function PostFeed({ posts, onViewProfile }: PostFeedProps) {
   const { account } = useSDK();
   const [tippingPost, setTippingPost] = useState<string | null>(null);
   const [tipAmount, setTipAmount] = useState('');
   const [autoTipThreshold, setAutoTipThreshold] = useState('');
   const [autoTipAmount, setAutoTipAmount] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
-  const [delegations, setDelegations] = useState<any[]>([]);
+  const [showComments, setShowComments] = useState<string | null>(null);
+  const [delegations, setDelegations] = useState<Array<{ postId: string; tipper: string; threshold: number; amount: string; active: boolean }>>([]);
   const [delegationStats, setDelegationStats] = useState({
     totalDelegations: 0,
     activeDelegations: 0,
@@ -46,21 +50,25 @@ export default function PostFeed({ posts }: PostFeedProps) {
   };
 
   const handleTip = async (postId: string) => {
-    if (!tipAmount) return;
+    if (!tipAmount || !account) return;
     
     setLoading(postId);
     try {
-      // In a real implementation, you would get the private key from MetaMask
-      // For demo purposes, we'll simulate the API call
-      console.log(`Tipping ${tipAmount} ETH to post ${postId}`);
+      // Send tip transaction using MetaMask signing
+      const txHash = await metaMaskSmartAccountService.sendTipTransaction(postId, tipAmount);
       
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Send tip to backend with transaction hash
+      const result = await apiService.sendTip(postId, tipAmount, account, txHash);
+      console.log('Tip sent successfully:', result);
       
       setTippingPost(null);
       setTipAmount('');
+      
+      // Show success message
+      alert(`Tip of ${tipAmount} ETH sent successfully! Transaction: ${txHash}`);
     } catch (error) {
       console.error('Error sending tip:', error);
+      alert(error instanceof Error ? error.message : 'Failed to send tip');
     } finally {
       setLoading(null);
     }
@@ -71,15 +79,34 @@ export default function PostFeed({ posts }: PostFeedProps) {
     
     setLoading(postId);
     try {
-      // Create delegation for auto-tipping
-      const result = await delegationService.createAutoTipDelegation(
+      // Enable auto-tip transaction using MetaMask signing
+      const txHash = await metaMaskSmartAccountService.enableAutoTipTransaction(
+        postId,
+        parseInt(autoTipThreshold),
+        autoTipAmount
+      );
+      
+      // Enable auto-tip in backend with transaction hash
+      const autoTipResult = await apiService.enableAutoTip(
+        postId,
+        autoTipThreshold,
+        autoTipAmount,
+        account,
+        txHash
+      );
+      
+      console.log('Auto-tip created:', autoTipResult);
+      
+      // Then create delegation for auto-tipping
+      const delegationResult = await delegationService.createAutoTipDelegation(
         postId,
         parseInt(autoTipThreshold),
         autoTipAmount,
-        account
+        account,
+        account // Using same address as delegatee for now
       );
 
-      console.log('Auto-tip delegation created:', result);
+      console.log('Auto-tip delegation created:', delegationResult);
       
       // Reload delegations to show the new one
       await loadDelegations();
@@ -89,10 +116,10 @@ export default function PostFeed({ posts }: PostFeedProps) {
       setAutoTipAmount('');
       
       // Show success message
-      alert(`Auto-tip delegation created! Will tip ${autoTipAmount} ETH when engagement reaches ${autoTipThreshold}`);
+      alert(`Auto-tip delegation created! Will tip ${autoTipAmount} ETH when engagement reaches ${autoTipThreshold}. Transaction: ${txHash}`);
     } catch (error) {
       console.error('Error setting up auto-tip delegation:', error);
-      alert('Failed to create auto-tip delegation. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to create auto-tip delegation');
     } finally {
       setLoading(null);
     }
@@ -114,178 +141,61 @@ export default function PostFeed({ posts }: PostFeedProps) {
     return `${hours}h ago`;
   };
 
-  const formatEther = (value: string) => {
-    return parseFloat(value).toFixed(4);
+  const formatEther = (value: number) => {
+    return value.toFixed(4);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-white">Recent Posts</h2>
+        <div>
+          <h2 className="text-3xl font-bold text-white mb-2">Recent Posts</h2>
+          <p className="text-silver/70">Discover and support amazing content</p>
+        </div>
         
         {/* Delegation Stats */}
-        {account && delegationStats.activeDelegations > 0 && (
-          <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-purple-200 text-sm">
-              <Shield className="w-4 h-4" />
-              <span>{delegationStats.activeDelegations} Active Delegations</span>
-              <span className="text-purple-300">({delegationStats.totalAutoTipAmount} ETH)</span>
-            </div>
-          </div>
-        )}
+        <DelegationStats 
+          delegationStats={delegationStats}
+          formatEther={formatEther}
+        />
       </div>
       
-      {posts.map((post) => {
-        // Check if this post has active delegations
-        const postDelegations = delegations.filter(d => d.postId === post.id && d.active);
-        const hasActiveDelegation = postDelegations.length > 0;
-        
-        return (
-        <div key={post.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-          {/* Post Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                {post.creator.slice(2, 4).toUpperCase()}
-              </div>
-              <div>
-                <p className="text-white font-medium">{post.creator}</p>
-                <p className="text-blue-200 text-sm">{formatTime(post.timestamp)}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-green-400 font-semibold">{formatEther(post.totalTips)} ETH</p>
-              <p className="text-blue-200 text-sm">{post.tipCount} tips</p>
-              {hasActiveDelegation && (
-                <div className="flex items-center gap-1 text-purple-300 text-xs mt-1">
-                  <Shield className="w-3 h-3" />
-                  <span>Auto-tip Active</span>
-                </div>
-              )}
-            </div>
+      {posts.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="w-20 h-20 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 flex items-center justify-center mx-auto mb-6">
+            <svg className="w-10 h-10 text-silver/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+            </svg>
           </div>
-
-          {/* Post Content */}
-          <p className="text-white mb-4">{post.content}</p>
-
-          {/* Post Stats */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => handleEngagement(post.id)}
-                className="flex items-center gap-2 text-blue-200 hover:text-white transition-colors"
-              >
-                <Heart className="w-4 h-4" />
-                {post.engagement}
-              </button>
-              <button className="flex items-center gap-2 text-blue-200 hover:text-white transition-colors">
-                <MessageCircle className="w-4 h-4" />
-                {post.tipCount}
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setTippingPost(tippingPost === post.id ? null : post.id)}
-                disabled={loading === post.id}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-              >
-                <Send className="w-4 h-4 inline mr-1" />
-                Tip
-              </button>
-              <button
-                onClick={() => setTippingPost(tippingPost === post.id ? null : post.id)}
-                disabled={loading === post.id}
-                className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-              >
-                <Zap className="w-4 h-4 inline mr-1" />
-                Auto-Tip
-              </button>
-            </div>
-          </div>
-
-          {/* Tip Interface */}
-          {tippingPost === post.id && (
-            <div className="border-t border-white/20 pt-4 mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Manual Tip */}
-                <div>
-                  <h4 className="text-white font-medium mb-2">Send Tip</h4>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      value={tipAmount}
-                      onChange={(e) => setTipAmount(e.target.value)}
-                      placeholder="0.01"
-                      step="0.001"
-                      className="flex-1 p-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 focus:border-blue-400 focus:outline-none"
-                    />
-                    <span className="text-blue-200 self-center">ETH</span>
-                    <button
-                      onClick={() => handleTip(post.id)}
-                      disabled={loading === post.id}
-                      className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors"
-                    >
-                      {loading === post.id ? 'Sending...' : 'Send'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Auto Tip */}
-                <div>
-                  <h4 className="text-white font-medium mb-2">Auto-Tip Setup</h4>
-                  <div className="space-y-2">
-                    <input
-                      type="number"
-                      value={autoTipThreshold}
-                      onChange={(e) => setAutoTipThreshold(e.target.value)}
-                      placeholder="Engagement threshold"
-                      className="w-full p-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 focus:border-blue-400 focus:outline-none"
-                    />
-                    <div className="flex gap-2">
-                      <input
-                        type="number"
-                        value={autoTipAmount}
-                        onChange={(e) => setAutoTipAmount(e.target.value)}
-                        placeholder="0.01"
-                        step="0.001"
-                        className="flex-1 p-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 focus:border-blue-400 focus:outline-none"
-                      />
-                      <span className="text-blue-200 self-center">ETH</span>
-                      <button
-                        onClick={() => handleAutoTip(post.id)}
-                        disabled={loading === post.id}
-                        className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 text-white px-4 py-2 rounded-lg transition-colors"
-                      >
-                        {loading === post.id ? 'Setting...' : 'Setup'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Delegation Details */}
-          {hasActiveDelegation && (
-            <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-              <h5 className="text-purple-200 font-medium mb-2 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Active Auto-Tip Delegations
-              </h5>
-              {postDelegations.map((delegation, index) => (
-                <div key={index} className="text-purple-300 text-sm">
-                  <span className="font-medium">{delegation.amount} ETH</span> when engagement reaches{' '}
-                  <span className="font-medium">{delegation.threshold}</span>
-                  <span className="text-purple-400 ml-2">
-                    (Current: {post.engagement})
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+          <p className="text-silver/70 text-xl font-medium mb-2">No posts yet</p>
+          <p className="text-silver/50">Be the first to create one and start the conversation!</p>
         </div>
-        );
-      })}
+      ) : (
+        posts.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            account={account}
+            delegations={delegations}
+            tippingPost={tippingPost}
+            showComments={showComments}
+            loading={loading}
+            tipAmount={tipAmount}
+            setTipAmount={setTipAmount}
+            autoTipThreshold={autoTipThreshold}
+            setAutoTipThreshold={setAutoTipThreshold}
+            autoTipAmount={autoTipAmount}
+            setAutoTipAmount={setAutoTipAmount}
+            onToggleTipping={setTippingPost}
+            onToggleComments={setShowComments}
+            onEngagement={handleEngagement}
+            onTip={handleTip}
+            onAutoTip={handleAutoTip}
+            formatTime={formatTime}
+            formatEther={formatEther}
+          />
+        ))
+      )}
     </div>
   );
 }

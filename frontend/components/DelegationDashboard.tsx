@@ -67,88 +67,106 @@ export default function DelegationDashboard({ isOpen, onClose, userAddress }: De
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 w-full max-w-4xl max-h-[80vh] overflow-y-auto shadow-2xl shadow-white/5">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Shield className="w-6 h-6 text-purple-400" />
-            <h2 className="text-2xl font-bold text-white">Delegation Dashboard</h2>
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-gradient-to-r from-white/20 to-silver/20 rounded-xl backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-white">Delegation Dashboard</h2>
+              <p className="text-silver/70 text-sm">Manage your auto-tip delegations</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white p-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-white/10"
             aria-label="Close delegation dashboard"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Shield className="w-5 h-5 text-blue-400" />
-              <h3 className="text-blue-200 font-medium">Total Delegations</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-white/20 to-silver/20 rounded-lg backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-white font-semibold">Total Delegations</h3>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.totalDelegations}</p>
+            <p className="text-3xl font-bold text-white">{stats.totalDelegations}</p>
           </div>
           
-          <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Zap className="w-5 h-5 text-green-400" />
-              <h3 className="text-green-200 font-medium">Active Delegations</h3>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-white/20 to-silver/20 rounded-lg backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-white font-semibold">Active Delegations</h3>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.activeDelegations}</p>
+            <p className="text-3xl font-bold text-white">{stats.activeDelegations}</p>
           </div>
           
-          <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="w-5 h-5 text-purple-400" />
-              <h3 className="text-purple-200 font-medium">Total Auto-Tip Amount</h3>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-white/20 to-silver/20 rounded-lg backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-white" />
+              </div>
+              <h3 className="text-white font-semibold">Total Auto-Tip Amount</h3>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.totalAutoTipAmount} ETH</p>
+            <p className="text-3xl font-bold text-white">{stats.totalAutoTipAmount} ETH</p>
           </div>
         </div>
 
         {/* Delegations List */}
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold text-white mb-4">Your Delegations</h3>
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <h3 className="text-2xl font-bold text-white">Your Delegations</h3>
+            <div className="w-8 h-8 bg-gradient-to-r from-white/20 to-silver/20 rounded-lg backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+          </div>
           
           {loading ? (
-            <div className="text-center text-white py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
-              Loading delegations...
+            <div className="text-center text-white py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+              <p className="text-silver/70">Loading delegations...</p>
             </div>
           ) : delegations.length === 0 ? (
-            <div className="text-center text-gray-400 py-8">
-              <Shield className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No delegations found</p>
-              <p className="text-sm">Create auto-tip delegations to see them here</p>
+            <div className="text-center text-silver/70 py-16">
+              <div className="w-20 h-20 bg-white/10 rounded-2xl backdrop-blur-sm border border-white/20 flex items-center justify-center mx-auto mb-6">
+                <Shield className="w-10 h-10 text-silver/50" />
+              </div>
+              <p className="text-xl font-medium mb-2">No delegations found</p>
+              <p className="text-silver/50">Create auto-tip delegations to see them here</p>
             </div>
           ) : (
             delegations.map((delegation, index) => (
-              <div key={index} className="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div key={index} className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all duration-300">
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-blue-500 rounded-full flex items-center justify-center">
-                        <Zap className="w-4 h-4 text-white" />
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-white/20 to-silver/20 rounded-xl backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                        <Zap className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <h4 className="text-white font-medium">Post #{delegation.postId}</h4>
-                        <p className="text-gray-400 text-sm">
-                          Auto-tip {delegation.amount} ETH when engagement reaches {delegation.threshold}
+                        <h4 className="text-white font-semibold text-lg">Post #{delegation.postId}</h4>
+                        <p className="text-silver/70">
+                          Auto-tip <span className="text-white font-medium">{delegation.amount} ETH</span> when engagement reaches <span className="text-white font-medium">{delegation.threshold}</span>
                         </p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-gray-400">
+                    <div className="flex items-center gap-6 text-sm text-silver/70">
                       <span>Created: {formatTime(delegation.timestamp || Date.now().toString())}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${
+                      <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
                         delegation.active 
-                          ? 'bg-green-500/20 text-green-400' 
-                          : 'bg-red-500/20 text-red-400'
+                          ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                          : 'bg-red-500/20 text-red-400 border border-red-500/30'
                       }`}>
                         {delegation.active ? 'Active' : 'Inactive'}
                       </span>
@@ -158,7 +176,7 @@ export default function DelegationDashboard({ isOpen, onClose, userAddress }: De
                   {delegation.active && (
                     <button
                       onClick={() => revokeDelegation(`auto-tip-${delegation.postId}-${index}`)}
-                      className="bg-red-500/20 hover:bg-red-500/30 text-red-400 px-3 py-1 rounded-lg text-sm transition-colors"
+                      className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-white/10 font-medium"
                     >
                       Revoke
                     </button>
@@ -170,17 +188,24 @@ export default function DelegationDashboard({ isOpen, onClose, userAddress }: De
         </div>
 
         {/* Innovation Highlight */}
-        <div className="mt-8 p-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="w-5 h-5 text-purple-400" />
-            <h4 className="text-purple-200 font-medium">Innovation Highlight</h4>
+        <div className="mt-12 p-8 bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-12 h-12 bg-gradient-to-r from-white/20 to-silver/20 rounded-xl backdrop-blur-sm border border-white/20 flex items-center justify-center">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h4 className="text-white font-bold text-xl">Innovation Highlight</h4>
+              <p className="text-silver/70 text-sm">Most Innovative Use of Delegations</p>
+            </div>
           </div>
-          <p className="text-purple-300 text-sm">
-            This delegation system represents the <strong>Most Innovative Use of Delegations</strong> 
-            by allowing users to delegate tipping permissions based on engagement thresholds. 
-            When a post reaches the specified engagement level, the system automatically executes 
-            the tip without requiring manual intervention.
-          </p>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
+            <p className="text-silver/70 leading-relaxed">
+              This delegation system represents the <span className="text-white font-semibold">Most Innovative Use of Delegations</span> 
+              by allowing users to delegate tipping permissions based on engagement thresholds. 
+              When a post reaches the specified engagement level, the system automatically executes 
+              the tip without requiring manual intervention, creating a seamless Web3 social experience.
+            </p>
+          </div>
         </div>
       </div>
     </div>

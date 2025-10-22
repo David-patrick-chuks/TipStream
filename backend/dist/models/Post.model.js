@@ -57,8 +57,8 @@ const PostSchema = new mongoose_1.Schema({
         required: true
     },
     totalTips: {
-        type: String,
-        default: '0'
+        type: Number, // Changed from String to Number
+        default: 0
     },
     tipCount: {
         type: Number,

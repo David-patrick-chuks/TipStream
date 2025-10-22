@@ -22,7 +22,7 @@ forge script script/SocialTipping.s.sol --rpc-url monad_testnet --broadcast --ve
 # Backend .env
 MONAD_RPC_URL=https://testnet-rpc.monad.xyz
 CONTRACT_ADDRESS=0x... # Your deployed contract address
-DATABASE_URL=mongodb://localhost:27017/social-tipping
+DATABASE_URL=mongodb://localhost:27017/tipstream
 
 # Frontend .env.local
 NEXT_PUBLIC_MONAD_RPC_URL=https://testnet-rpc.monad.xyz
@@ -117,7 +117,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 ## 🎥 Demo Video Script
 
 ### 1. Introduction (30 seconds)
-- "This is our Web3 Social Tipping Platform"
+- "This is our TipStream Platform"
 - "Built with MetaMask Smart Accounts and deployed on Monad testnet"
 - "Features innovative auto-tip delegations based on engagement"
 

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Web3 Social Tipping Platform",
+  title: "TipStream Platform",
   description: "Built on Monad with MetaMask Smart Accounts - Send tips to content creators with auto-tipping features",
 };
 

@@ -43,8 +43,8 @@ const UserSchema = new mongoose_1.Schema({
         index: true
     },
     totalEarnings: {
-        type: String,
-        default: '0'
+        type: Number, // Changed from String to Number
+        default: 0
     },
     postCount: {
         type: Number,

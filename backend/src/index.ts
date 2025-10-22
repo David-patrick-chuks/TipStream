@@ -1,37 +1,51 @@
-import { AnalyticsController } from './controllers/analytics.controller';
-import { PostController } from './controllers/post.controller';
-import { TipController } from './controllers/tip.controller';
-import { UserController } from './controllers/user.controller';
-import { BlockchainService } from './services/blockchain.service';
-import { databaseService } from './services/database.service';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
+import fileUpload from 'express-fileupload';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { AnalyticsController } from './controllers/analytics.controller';
+import { CommentController } from './controllers/comment.controller';
+import { PostController } from './controllers/post.controller';
+import { TipController } from './controllers/tip.controller';
+import { UserController } from './controllers/user.controller';
+import { databaseService } from './services/database.service';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
-const blockchainService = new BlockchainService();
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tx-hash']
+}));
 app.use(morgan('combined'));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(fileUpload({
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  abortOnLimit: true,
+  responseOnLimit: 'File size limit has been reached',
+  uploadTimeout: 60000, // 60 seconds
+}));
 
 // Controllers
-const postController = new PostController(blockchainService);
-const tipController = new TipController(blockchainService);
+const postController = new PostController();
+const tipController = new TipController();
 const userController = new UserController();
+const commentController = new CommentController();
 const analyticsController = new AnalyticsController();
 
 // Routes
 app.use('/api/posts', postController.router);
 app.use('/api/tips', tipController.router);
 app.use('/api/users', userController.router);
+app.use('/api/comments', commentController.router);
 app.use('/api/analytics', analyticsController.router);
 
 // Health check
@@ -78,3 +92,4 @@ process.on('SIGINT', async () => {
 });
 
 export { app };
+
